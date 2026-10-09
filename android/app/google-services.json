@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "128252278910",
+    "project_id": "langkah-awal-bik",
+    "storage_bucket": "langkah-awal-bik.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:128252278910:android:7d27f06ea56afb962c402f",
+        "android_client_info": {
+          "package_name": "com.langkahawal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8zaLZBdgGLVwyRLw68Abtj_QWX23aJ64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
