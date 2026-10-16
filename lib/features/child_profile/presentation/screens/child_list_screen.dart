@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/child_entity.dart';
 import '../providers/child_provider.dart';
 import '../../../../shared/widgets/empty_state_widget.dart';
@@ -27,9 +29,29 @@ class ChildListScreen extends ConsumerWidget {
     final selectedChild = ref.watch(selectedChildProvider);
     final isLoading = ref.watch(isLoadingProvider);
 
+    // Loading skeleton saat pertama kali ambil data dari Firestore
+    if (isLoading) {
+      return Scaffold(
+        body: SafeArea(
+          child: _buildLoadingSkeleton(context),
+        ),
+      );
+    }
+
     // Empty state — belum ada anak
     if (children.isEmpty) {
       return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Keluar',
+              onPressed: () => _confirmSignOut(context, ref),
+            ),
+          ],
+        ),
         body: SafeArea(
           child: EmptyStateWidget(
             icon: Icons.child_care,
@@ -39,15 +61,6 @@ class ChildListScreen extends ConsumerWidget {
             actionLabel: 'Tambah Anak',
             onAction: () => context.pushNamed('addChild'),
           ),
-        ),
-      );
-    }
-
-    // Loading skeleton
-    if (isLoading) {
-      return Scaffold(
-        body: SafeArea(
-          child: _buildLoadingSkeleton(context),
         ),
       );
     }
@@ -79,7 +92,7 @@ class ChildListScreen extends ConsumerWidget {
                     // === GREETING HEADER ===
                     AnimatedEntrance(
                       delay: const Duration(milliseconds: 50),
-                      child: _buildGreetingHeader(context),
+                      child: _buildGreetingHeader(context, ref),
                     ),
 
                     const SizedBox(height: 20),
@@ -133,7 +146,7 @@ class ChildListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGreetingHeader(BuildContext context) {
+  Widget _buildGreetingHeader(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final hour = DateTime.now().hour;
@@ -143,25 +156,71 @@ class ChildListScreen extends ConsumerWidget {
             ? 'Selamat Siang'
             : 'Selamat Sore';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = user?.displayName?.trim();
+    final greetingTitle = (displayName != null && displayName.isNotEmpty)
+        ? '$greeting, $displayName'
+        : greeting;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          greeting,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: colorScheme.primary,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                greetingTitle,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Mari pantau tumbuh kembang Si Kecil hari ini.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Mari pantau tumbuh kembang Si Kecil hari ini.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+        IconButton(
+          icon: const Icon(Icons.logout_rounded),
+          tooltip: 'Keluar Akun',
+          onPressed: () => _confirmSignOut(context, ref),
         ),
       ],
     );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Keluar Akun'),
+        content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      await ref.read(authRepositoryProvider).signOut();
+      if (context.mounted) {
+        context.goNamed('login');
+      }
+    }
   }
 
   Widget _buildChildSummaryCard(BuildContext context, ChildEntity? child) {

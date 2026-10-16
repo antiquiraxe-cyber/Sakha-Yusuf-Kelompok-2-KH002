@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -11,8 +12,24 @@ class AppRouter {
   AppRouter._();
 
   static final GoRouter router = GoRouter(
-    // TODO: Kembalikan ke '/login' setelah auth selesai
-    initialLocation: '/home',
+    initialLocation: '/login',
+    redirect: (context, state) {
+      final user = FirebaseAuth.instance.currentUser;
+      final isAuthRoute =
+          state.uri.path == '/login' || state.uri.path == '/register';
+
+      // Belum login & bukan di halaman login/register -> paksa ke /login
+      if (user == null && !isAuthRoute) {
+        return '/login';
+      }
+
+      // Sudah login tapi masih di halaman login/register -> arahkan ke /home
+      if (user != null && isAuthRoute) {
+        return '/home';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/login',

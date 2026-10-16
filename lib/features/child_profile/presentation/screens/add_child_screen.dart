@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,30 +66,37 @@ class _AddChildScreenState extends ConsumerState<AddChildScreen> {
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorSnackBar('Sesi Anda berakhir. Silakan masuk kembali.');
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
-    // Simulasi save — nanti diganti dengan repository call
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      final newChild = ChildEntity(
+        id: '', // Otomatis dibuatkan Document ID oleh Firestore
+        parentId: user.uid,
+        name: _nameController.text.trim(),
+        birthDate: _selectedBirthDate!,
+        gender: _selectedGender,
+        childOrder: int.tryParse(_childOrderController.text) ?? 1,
+        createdAt: DateTime.now(),
+      );
 
-    final newChild = ChildEntity(
-      id: 'child_${DateTime.now().millisecondsSinceEpoch}',
-      parentId: 'parent_001', // Mock — nanti dari Firebase Auth
-      name: _nameController.text.trim(),
-      birthDate: _selectedBirthDate!,
-      gender: _selectedGender,
-      childOrder: int.tryParse(_childOrderController.text) ?? 1,
-      createdAt: DateTime.now(),
-    );
+      await ref.read(childRepositoryProvider).addChild(newChild);
 
-    // Update mock provider
-    final children = ref.read(childListProvider);
-    ref.read(childListProvider.notifier).state = [...children, newChild];
-    ref.read(selectedChildProvider.notifier).state = newChild;
-
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      context.goNamed('home');
-      _showSuccessSnackBar('Data ${newChild.name} berhasil disimpan');
+      if (mounted) {
+        context.goNamed('home');
+        _showSuccessSnackBar('Data ${newChild.name} berhasil disimpan');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Gagal menyimpan data: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 

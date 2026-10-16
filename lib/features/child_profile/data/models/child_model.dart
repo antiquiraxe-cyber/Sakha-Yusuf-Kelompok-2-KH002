@@ -19,7 +19,7 @@ class ChildModel extends ChildEntity {
       id: doc.id,
       parentId: data['parentId'] as String? ?? '',
       name: data['name'] as String? ?? '',
-      birthDate: (data['birthDate'] as Timestamp).toDate(),
+      birthDate: (data['birthDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       gender: (data['gender'] as String? ?? 'male') == 'male' ? Gender.male : Gender.female,
       childOrder: data['childOrder'] as int? ?? 1,
       photoUrl: data['photoUrl'] as String?,
