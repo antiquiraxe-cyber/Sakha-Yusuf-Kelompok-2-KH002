@@ -50,3 +50,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Project internal docs & task reports
+docs/PEMBAGIAN-TUGAS.md
+docs/REPORT-PROGRES-SAKHA.md
+
