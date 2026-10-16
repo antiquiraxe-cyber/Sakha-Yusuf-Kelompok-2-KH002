@@ -54,4 +54,5 @@ app.*.map.json
 # Project internal docs & task reports
 docs/PEMBAGIAN-TUGAS.md
 docs/REPORT-PROGRES-SAKHA.md
+docs/TUTORIAL-KONEKSI-FIREBASE.md
 
