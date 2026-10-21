@@ -430,6 +430,9 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       minimumSize: const Size.fromHeight(52),
                     ),
                   ),
+
+                  const SizedBox(height: AppTheme.paddingXL),
+                  _buildHistorySection(context, ref),
                 ],
               ),
             ),
@@ -437,5 +440,243 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildHistorySection(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(growthRecordsStreamProvider(widget.childId));
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Riwayat Pertumbuhan',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Icon(Icons.history_rounded, size: 20),
+          ],
+        ),
+        const SizedBox(height: 12),
+        historyAsync.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          error: (err, _) => Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.errorContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Gagal memuat riwayat: $err',
+              style: TextStyle(color: colorScheme.error),
+            ),
+          ),
+          data: (records) {
+            if (records.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.monitor_weight_outlined,
+                        size: 36, color: colorScheme.outline),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Belum ada riwayat timbangan',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Column(
+              children: records.map((record) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  elevation: 0.5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.event, size: 16, color: Colors.grey),
+                                const SizedBox(width: 6),
+                                Text(
+                                  DateFormat('dd MMMM yyyy', 'id_ID')
+                                      .format(record.recordDate),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  size: 20, color: Colors.redAccent),
+                              tooltip: 'Hapus Catatan',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () =>
+                                  _confirmDeleteRecord(record.id),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 16),
+                        Row(
+                          children: [
+                            _buildHistoryBadge(
+                              context,
+                              icon: Icons.monitor_weight_outlined,
+                              label: 'BB: ${record.weightKg.toStringAsFixed(1)} kg',
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildHistoryBadge(
+                              context,
+                              icon: Icons.height,
+                              label: 'TB: ${record.heightCm.toStringAsFixed(1)} cm',
+                              color: const Color(0xFFFFA726),
+                            ),
+                            if (record.headCircumferenceCm != null) ...[
+                              const SizedBox(width: 8),
+                              _buildHistoryBadge(
+                                context,
+                                icon: Icons.face,
+                                label: 'LK: ${record.headCircumferenceCm!.toStringAsFixed(1)} cm',
+                                color: const Color(0xFF43A047),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (record.note != null && record.note!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Catatan: ${record.note}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryBadge(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteRecord(String recordId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Catatan'),
+        content: const Text('Apakah Anda yakin ingin menghapus catatan pertumbuhan ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await ref
+            .read(growthRecordRepositoryProvider)
+            .deleteRecord(widget.childId, recordId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Catatan pertumbuhan berhasil dihapus'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menghapus catatan: $e'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
   }
 }

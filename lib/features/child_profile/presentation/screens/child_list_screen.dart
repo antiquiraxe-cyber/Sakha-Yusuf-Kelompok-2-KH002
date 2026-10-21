@@ -8,6 +8,8 @@ import '../providers/child_provider.dart';
 import '../../../../shared/widgets/empty_state_widget.dart';
 import '../../../../shared/widgets/child_summary_card.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
+import '../../../milestone/presentation/providers/milestone_provider.dart';
+import '../../../tracking/presentation/providers/growth_record_provider.dart';
 
 /// Dashboard utama aplikasi LangkahAwal.
 ///
@@ -100,15 +102,15 @@ class ChildListScreen extends ConsumerWidget {
                     // === CHILD SUMMARY CARD ===
                     AnimatedEntrance(
                       delay: const Duration(milliseconds: 150),
-                      child: _buildChildSummaryCard(context, selectedChild),
+                      child: _buildChildSummaryCard(context, selectedChild, ref),
                     ),
 
                     const SizedBox(height: 20),
 
-                    // === GROWTH STATS ROW (mock) ===
+                    // === GROWTH STATS ROW ===
                     AnimatedEntrance(
                       delay: const Duration(milliseconds: 250),
-                      child: _buildGrowthStats(context, selectedChild),
+                      child: _buildGrowthStats(context, selectedChild, ref),
                     ),
 
                     const SizedBox(height: 20),
@@ -223,22 +225,37 @@ class ChildListScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildChildSummaryCard(BuildContext context, ChildEntity? child) {
+  Widget _buildChildSummaryCard(
+      BuildContext context, ChildEntity? child, WidgetRef ref) {
     if (child == null) return const SizedBox.shrink();
+
+    final latestMilestone = ref.watch(latestMilestoneResultProvider(child.id));
 
     return ChildSummaryCard(
       child: child,
-      lastMilestoneStatus: null, // TODO: ambil dari milestone data
+      lastMilestoneStatus: latestMilestone?.status,
       onTap: () => context.pushNamed('milestone',
           pathParameters: {'childId': child.id}),
     );
   }
 
-  Widget _buildGrowthStats(BuildContext context, ChildEntity? child) {
+  Widget _buildGrowthStats(
+      BuildContext context, ChildEntity? child, WidgetRef ref) {
     if (child == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final latestRecord = ref.watch(latestGrowthRecordProvider(child.id));
+
+    final weightText = latestRecord != null
+        ? '${latestRecord.weightKg.toStringAsFixed(1)} kg'
+        : '— kg';
+    final heightText = latestRecord != null
+        ? '${latestRecord.heightCm.toStringAsFixed(1)} cm'
+        : '— cm';
+    final headText = (latestRecord?.headCircumferenceCm != null)
+        ? '${latestRecord!.headCircumferenceCm!.toStringAsFixed(1)} cm'
+        : '— cm';
 
     return Row(
       children: [
@@ -246,7 +263,7 @@ class ChildListScreen extends ConsumerWidget {
           child: _StatTile(
             icon: Icons.monitor_weight_outlined,
             label: 'Berat',
-            value: '— kg',
+            value: weightText,
             color: colorScheme.primary,
           ),
         ),
@@ -255,7 +272,7 @@ class ChildListScreen extends ConsumerWidget {
           child: _StatTile(
             icon: Icons.height_outlined,
             label: 'Tinggi',
-            value: '— cm',
+            value: heightText,
             color: const Color(0xFFFFA726),
           ),
         ),
@@ -264,7 +281,7 @@ class ChildListScreen extends ConsumerWidget {
           child: _StatTile(
             icon: Icons.straighten_outlined,
             label: 'Lingkar Kepala',
-            value: '— cm',
+            value: headText,
             color: const Color(0xFF43A047),
           ),
         ),
