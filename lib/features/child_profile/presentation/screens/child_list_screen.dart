@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/child_entity.dart';
 import '../providers/child_provider.dart';
@@ -9,7 +10,9 @@ import '../../../../shared/widgets/empty_state_widget.dart';
 import '../../../../shared/widgets/child_summary_card.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
 import '../../../milestone/presentation/providers/milestone_provider.dart';
+import '../../../tracking/domain/services/growth_evaluation_service.dart';
 import '../../../tracking/presentation/providers/growth_record_provider.dart';
+import '../../../tracking/presentation/widgets/growth_evaluation_sheet.dart';
 
 /// Dashboard utama aplikasi LangkahAwal.
 ///
@@ -111,6 +114,15 @@ class ChildListScreen extends ConsumerWidget {
                     AnimatedEntrance(
                       delay: const Duration(milliseconds: 250),
                       child: _buildGrowthStats(context, selectedChild, ref),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // === GROWTH EVALUATION CARD ===
+                    AnimatedEntrance(
+                      delay: const Duration(milliseconds: 300),
+                      child: _buildGrowthEvaluationCard(
+                          context, selectedChild, ref),
                     ),
 
                     const SizedBox(height: 20),
@@ -286,6 +298,195 @@ class ChildListScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildGrowthEvaluationCard(
+      BuildContext context, ChildEntity? child, WidgetRef ref) {
+    if (child == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final latestRecord = ref.watch(latestGrowthRecordProvider(child.id));
+
+    if (latestRecord == null) {
+      return Card(
+        elevation: 0,
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.pushNamed(
+            'tracking',
+            pathParameters: {'childId': child.id},
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.add_chart_rounded,
+                    color: colorScheme.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Belum Ada Catatan Fisik',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Catat berat & tinggi badan si kecil untuk evaluasi gizi.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: colorScheme.outline),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final eval = GrowthEvaluationService.evaluate(
+      ageInMonths: child.ageInMonths,
+      gender: child.gender,
+      weightKg: latestRecord.weightKg,
+      heightCm: latestRecord.heightCm,
+    );
+
+    final Color statusColor;
+    final Color statusBg;
+    final IconData statusIcon;
+
+    switch (eval.alertLevel) {
+      case GrowthAlertLevel.danger:
+        statusColor = Colors.red.shade700;
+        statusBg = Colors.red.shade50;
+        statusIcon = Icons.error_outline_rounded;
+        break;
+      case GrowthAlertLevel.warning:
+        statusColor = Colors.orange.shade800;
+        statusBg = Colors.orange.shade50;
+        statusIcon = Icons.warning_amber_rounded;
+        break;
+      case GrowthAlertLevel.normal:
+        statusColor = Colors.green.shade700;
+        statusBg = Colors.green.shade50;
+        statusIcon = Icons.check_circle_outline_rounded;
+        break;
+    }
+
+    return Card(
+      elevation: 0.5,
+      color: statusBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: statusColor.withValues(alpha: 0.35),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => showGrowthEvaluationSheet(
+          context,
+          childName: child.name,
+          eval: eval,
+          subtitle:
+              'Catatan Terakhir • ${DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(latestRecord.recordDate)} WIB',
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(statusIcon, color: statusColor, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      eval.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        color: statusColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Terbaru',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                eval.summary,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade800,
+                  height: 1.35,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Lihat Saran Gizi & Solusi Nutrisi',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      size: 11, color: statusColor),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

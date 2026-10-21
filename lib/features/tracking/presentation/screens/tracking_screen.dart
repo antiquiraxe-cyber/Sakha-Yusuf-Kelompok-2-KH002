@@ -9,6 +9,7 @@ import '../../../child_profile/presentation/providers/child_provider.dart';
 import '../../domain/entities/growth_record_entity.dart';
 import '../../domain/services/growth_evaluation_service.dart';
 import '../providers/growth_record_provider.dart';
+import '../widgets/growth_evaluation_sheet.dart';
 
 class TrackingScreen extends ConsumerStatefulWidget {
   final String childId;
@@ -38,19 +39,36 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  Future<void> _selectDateTime() async {
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _recordDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       locale: const Locale('id', 'ID'),
     );
-    if (picked != null && picked != _recordDate) {
-      setState(() {
-        _recordDate = picked;
-      });
-    }
+
+    if (pickedDate == null || !mounted) return;
+
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_recordDate),
+    );
+
+    if (!mounted) return;
+
+    final hour = pickedTime?.hour ?? _recordDate.hour;
+    final minute = pickedTime?.minute ?? _recordDate.minute;
+
+    setState(() {
+      _recordDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        hour,
+        minute,
+      );
+    });
   }
 
   Future<void> _saveRecord() async {
@@ -75,7 +93,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       createdAt: DateTime.now(),
     );
 
-    ref.read(growthRecordsProvider.notifier).addRecord(record);
+    await ref.read(growthRecordsProvider.notifier).addRecord(record);
     ref.read(isSavingRecordProvider.notifier).state = false;
 
     if (!mounted) return;
@@ -94,201 +112,14 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       heightCm: height,
     );
 
-    // Jika ada catatan gizi/fisik khusus (stunting/kurang/obesitas), tampilkan bottom sheet edukatif
-    if (eval.hasAlert) {
-      await _showEvaluationSheet(context, child?.name ?? 'Si Kecil', eval);
-      if (mounted) context.goNamed('home');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Catatan pertumbuhan berhasil disimpan'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.goNamed('home');
-    }
-  }
-
-  Future<void> _showEvaluationSheet(
-    BuildContext context,
-    String childName,
-    GrowthEvaluationResult eval,
-  ) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.65,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: ListView(
-                controller: scrollController,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.insights_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hasil Pemantauan $childName',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              'Data telah berhasil disimpan',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          eval.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          eval.summary,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Saran Nutrisi & Makanan:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const SizedBox(height: 6),
-                  ...eval.foodRecommendations.map(
-                    (rec) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('• ',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          Expanded(
-                            child: Text(rec, style: const TextStyle(fontSize: 12.5)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (eval.foodsToAvoid.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Makanan yang Perlu Dibatasi:',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    const SizedBox(height: 4),
-                    ...eval.foodsToAvoid.map(
-                      (avoid) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('✕ ',
-                                style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontWeight: FontWeight.bold)),
-                            Expanded(
-                              child: Text(avoid,
-                                  style: const TextStyle(fontSize: 12)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '💡 ${eval.clinicalAction}',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Colors.blue.shade900,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                    child: const Text('Mengerti & Selesai'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+    // Tampilkan bottom sheet edukatif hasil evaluasi & panduan nutrisi
+    await showGrowthEvaluationSheet(
+      context,
+      childName: child?.name ?? 'Si Kecil',
+      eval: eval,
+      subtitle: 'Data telah berhasil disimpan',
     );
+    if (mounted) context.goNamed('home');
   }
 
   @override
@@ -312,17 +143,18 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Tanggal
+                  // Tanggal & Jam Pencatatan
                   InkWell(
-                    onTap: () => _selectDate(context),
+                    onTap: _selectDateTime,
                     borderRadius: BorderRadius.circular(AppTheme.radiusM),
                     child: InputDecorator(
                       decoration: const InputDecoration(
-                        labelText: 'Tanggal Pencatatan',
-                        prefixIcon: Icon(Icons.calendar_today),
+                        labelText: 'Waktu Pencatatan',
+                        prefixIcon: Icon(Icons.access_time_rounded),
+                        suffixIcon: Icon(Icons.edit_calendar_outlined, size: 20),
                       ),
                       child: Text(
-                        DateFormat('dd MMMM yyyy', 'id_ID').format(_recordDate),
+                        '${DateFormat('dd MMMM yyyy • HH:mm', 'id_ID').format(_recordDate)} WIB',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
@@ -446,6 +278,11 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     final historyAsync = ref.watch(growthRecordsStreamProvider(widget.childId));
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final children = ref.watch(childListProvider);
+    final child = children.cast<ChildEntity?>().firstWhere(
+          (c) => c?.id == widget.childId,
+          orElse: () => null,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,85 +349,184 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
 
             return Column(
               children: records.map((record) {
+                final eval = GrowthEvaluationService.evaluate(
+                  ageInMonths: child?.ageInMonths ?? 12,
+                  gender: child?.gender ?? Gender.male,
+                  weightKg: record.weightKg,
+                  heightCm: record.heightCm,
+                );
+
+                final Color statusBadgeBg;
+                final Color statusBadgeColor;
+                final String statusBadgeLabel;
+                final IconData statusBadgeIcon;
+
+                switch (eval.alertLevel) {
+                  case GrowthAlertLevel.danger:
+                    statusBadgeBg = Colors.red.shade50;
+                    statusBadgeColor = Colors.red.shade700;
+                    statusBadgeIcon = Icons.error_outline_rounded;
+                    statusBadgeLabel = eval.stuntingStatus == StuntingStatus.severelyStunted
+                        ? 'Sangat Pendek'
+                        : (eval.weightStatus == WeightStatus.obese
+                            ? 'Obesitas'
+                            : (eval.weightStatus == WeightStatus.severelyUnderweight
+                                ? 'Gizi Buruk'
+                                : 'Peringatan'));
+                    break;
+                  case GrowthAlertLevel.warning:
+                    statusBadgeBg = Colors.orange.shade50;
+                    statusBadgeColor = Colors.orange.shade800;
+                    statusBadgeIcon = Icons.warning_amber_rounded;
+                    statusBadgeLabel = eval.stuntingStatus == StuntingStatus.stunted
+                        ? 'Pendek'
+                        : (eval.weightStatus == WeightStatus.underweight
+                            ? 'Gizi Kurang'
+                            : (eval.weightStatus == WeightStatus.overweightRisk
+                                ? 'Risiko Lebih'
+                                : 'Waspada'));
+                    break;
+                  case GrowthAlertLevel.normal:
+                    statusBadgeBg = Colors.green.shade50;
+                    statusBadgeColor = Colors.green.shade700;
+                    statusBadgeIcon = Icons.check_circle_outline_rounded;
+                    statusBadgeLabel = 'Normal';
+                    break;
+                }
+
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
+                  margin: const EdgeInsets.only(bottom: 12),
                   elevation: 0.5,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     side: BorderSide(
                       color: colorScheme.outlineVariant.withValues(alpha: 0.4),
                     ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.event, size: 16, color: Colors.grey),
-                                const SizedBox(width: 6),
-                                Text(
-                                  DateFormat('dd MMMM yyyy', 'id_ID')
-                                      .format(record.recordDate),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => showGrowthEvaluationSheet(
+                      context,
+                      childName: child?.name ?? 'Si Kecil',
+                      eval: eval,
+                      subtitle:
+                          'Catatan: ${DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(record.recordDate)} WIB',
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.access_time_rounded,
+                                      size: 16, color: Colors.grey),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(record.recordDate)} WIB',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  size: 20, color: Colors.redAccent),
-                              tooltip: 'Hapus Catatan',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () =>
-                                  _confirmDeleteRecord(record.id),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 16),
-                        Row(
-                          children: [
-                            _buildHistoryBadge(
-                              context,
-                              icon: Icons.monitor_weight_outlined,
-                              label: 'BB: ${record.weightKg.toStringAsFixed(1)} kg',
-                              color: colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildHistoryBadge(
-                              context,
-                              icon: Icons.height,
-                              label: 'TB: ${record.heightCm.toStringAsFixed(1)} cm',
-                              color: const Color(0xFFFFA726),
-                            ),
-                            if (record.headCircumferenceCm != null) ...[
-                              const SizedBox(width: 8),
-                              _buildHistoryBadge(
-                                context,
-                                icon: Icons.face,
-                                label: 'LK: ${record.headCircumferenceCm!.toStringAsFixed(1)} cm',
-                                color: const Color(0xFF43A047),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 20, color: Colors.redAccent),
+                                tooltip: 'Hapus Catatan',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () =>
+                                    _confirmDeleteRecord(record.id),
                               ),
                             ],
-                          ],
-                        ),
-                        if (record.note != null && record.note!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Catatan: ${record.note}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: colorScheme.onSurfaceVariant,
+                          ),
+                          const Divider(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              _buildHistoryBadge(
+                                context,
+                                icon: Icons.monitor_weight_outlined,
+                                label: 'BB: ${record.weightKg.toStringAsFixed(1)} kg',
+                                color: colorScheme.primary,
+                              ),
+                              _buildHistoryBadge(
+                                context,
+                                icon: Icons.height,
+                                label: 'TB: ${record.heightCm.toStringAsFixed(1)} cm',
+                                color: const Color(0xFFFFA726),
+                              ),
+                              if (record.headCircumferenceCm != null)
+                                _buildHistoryBadge(
+                                  context,
+                                  icon: Icons.face,
+                                  label:
+                                      'LK: ${record.headCircumferenceCm!.toStringAsFixed(1)} cm',
+                                  color: const Color(0xFF43A047),
+                                ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: statusBadgeBg,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: statusBadgeColor
+                                          .withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(statusBadgeIcon,
+                                        size: 13, color: statusBadgeColor),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      statusBadgeLabel,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: statusBadgeColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (record.note != null && record.note!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Catatan: ${record.note}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
+                          ],
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Lihat Hasil & Rekomendasi Gizi',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_forward_ios_rounded,
+                                  size: 11, color: colorScheme.primary),
+                            ],
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 );
