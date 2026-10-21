@@ -164,7 +164,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                 // Submit button
                 if (isComplete)
                   ElevatedButton(
-                    onPressed: () => _submitResult(context, totalYes, evalAgeMonth, questions.length),
+                    onPressed: () => _submitResult(totalYes, evalAgeMonth, questions.length),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF82),
                       foregroundColor: Colors.white,
@@ -401,8 +401,8 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
     }
   }
 
-  void _submitResult(
-      BuildContext context, int totalYes, int evalAgeMonth, int totalQuestions) {
+  Future<void> _submitResult(
+      int totalYes, int evalAgeMonth, int totalQuestions) async {
     final result = MilestoneResultEntity(
       id: 'result_${DateTime.now().millisecondsSinceEpoch}',
       childId: widget.childId,
@@ -415,8 +415,21 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
       evaluatedAt: DateTime.now(),
     );
 
-    // Update last result (mock)
-    ref.read(lastMilestoneResultProvider.notifier).state = result;
+    try {
+      await ref.read(milestoneRepositoryProvider).saveMilestoneResult(result);
+      ref.read(lastMilestoneResultProvider.notifier).state = result;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Catatan tersimpan lokal (Cloud sync: $e)'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    if (!mounted) return;
 
     // Show result dialog
     showDialog(

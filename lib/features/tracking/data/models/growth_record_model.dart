@@ -1,4 +1,5 @@
-import 'package:langkahawal/features/tracking/domain/entities/growth_record_entity.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../domain/entities/growth_record_entity.dart';
 
 class GrowthRecordModel extends GrowthRecordEntity {
   const GrowthRecordModel({
@@ -12,6 +13,47 @@ class GrowthRecordModel extends GrowthRecordEntity {
     super.photoUrl,
     required super.createdAt,
   });
+
+  factory GrowthRecordModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    final recordDate = data['recordDate'] is Timestamp
+        ? (data['recordDate'] as Timestamp).toDate()
+        : (data['recordDate'] is String
+            ? DateTime.tryParse(data['recordDate'] as String) ?? DateTime.now()
+            : DateTime.now());
+
+    final createdAt = data['createdAt'] is Timestamp
+        ? (data['createdAt'] as Timestamp).toDate()
+        : (data['createdAt'] is String
+            ? DateTime.tryParse(data['createdAt'] as String) ?? DateTime.now()
+            : DateTime.now());
+
+    return GrowthRecordModel(
+      id: doc.id,
+      childId: data['childId'] as String? ?? '',
+      recordDate: recordDate,
+      weightKg: (data['weightKg'] as num?)?.toDouble() ?? 0.0,
+      heightCm: (data['heightCm'] as num?)?.toDouble() ?? 0.0,
+      headCircumferenceCm: (data['headCircumferenceCm'] as num?)?.toDouble(),
+      note: data['note'] as String?,
+      photoUrl: data['photoUrl'] as String?,
+      createdAt: createdAt,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'childId': childId,
+      'recordDate': Timestamp.fromDate(recordDate),
+      'weightKg': weightKg,
+      'heightCm': heightCm,
+      'headCircumferenceCm': headCircumferenceCm,
+      'note': note,
+      'photoUrl': photoUrl,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
 
   factory GrowthRecordModel.fromJson(Map<String, dynamic> json) {
     return GrowthRecordModel(

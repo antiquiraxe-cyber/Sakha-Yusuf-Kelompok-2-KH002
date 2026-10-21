@@ -1,6 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/kpsp_question_bank.dart';
+import '../../data/repositories/milestone_repository_impl.dart';
 import '../../domain/entities/milestone_entity.dart';
+import '../../domain/repositories/milestone_repository.dart';
+
+/// Provider untuk instance MilestoneRepository
+final milestoneRepositoryProvider = Provider<MilestoneRepository>((ref) {
+  return MilestoneRepositoryImpl();
+});
 
 /// Provider untuk daftar soal KPSP berdasarkan usia evaluasi.
 final kpspQuestionsProvider =
@@ -35,6 +42,23 @@ final milestoneAnswersProvider =
   (ref) => MilestoneAnswersNotifier(),
 );
 
-/// Hasil evaluasi terakhir (mock, nanti dari Firestore).
+/// Hasil evaluasi terakhir sementara di memori
 final lastMilestoneResultProvider =
     StateProvider<MilestoneResultEntity?>((ref) => null);
+
+/// Stream riwayat evaluasi milestone anak dari Firestore
+final milestoneHistoryStreamProvider =
+    StreamProvider.family<List<MilestoneResultEntity>, String>((ref, childId) {
+  final repo = ref.watch(milestoneRepositoryProvider);
+  return repo.watchMilestoneHistory(childId);
+});
+
+/// Provider hasil evaluasi milestone paling baru untuk seorang anak
+final latestMilestoneResultProvider =
+    Provider.family<MilestoneResultEntity?, String>((ref, childId) {
+  final historyAsync = ref.watch(milestoneHistoryStreamProvider(childId));
+  return historyAsync.maybeWhen(
+    data: (records) => records.isEmpty ? null : records.first,
+    orElse: () => null,
+  );
+});
