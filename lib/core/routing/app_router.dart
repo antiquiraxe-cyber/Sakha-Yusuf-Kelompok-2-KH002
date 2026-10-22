@@ -9,6 +9,7 @@ import '../../features/child_profile/presentation/screens/add_child_screen.dart'
 import '../../features/child_profile/presentation/screens/child_list_screen.dart';
 import '../../features/milestone/presentation/screens/milestone_screen.dart';
 import '../../features/tracking/presentation/screens/tracking_screen.dart';
+import '../../features/child_profile/presentation/screens/edit_child_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -73,6 +74,14 @@ class AppRouter {
         name: 'addChild',
         builder: (context, state) => const AddChildScreen(),
       ),
+      GoRoute(
+        name: 'editChild',
+        path: '/edit-child/:childId',
+       builder: (context, state) {
+       final childData = state.extra;
+       return EditChildScreen(childData: childData);
+  },
+),
     ],
   );
 }

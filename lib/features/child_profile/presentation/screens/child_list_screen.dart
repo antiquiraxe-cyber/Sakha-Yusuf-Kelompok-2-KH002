@@ -237,20 +237,99 @@ class ChildListScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildChildSummaryCard(
+ Widget _buildChildSummaryCard(
       BuildContext context, ChildEntity? child, WidgetRef ref) {
     if (child == null) return const SizedBox.shrink();
 
     final latestMilestone = ref.watch(latestMilestoneResultProvider(child.id));
 
-    return ChildSummaryCard(
-      child: child,
-      lastMilestoneStatus: latestMilestone?.status,
-      onTap: () => context.pushNamed('milestone',
-          pathParameters: {'childId': child.id}),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Profil Anak',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                  tooltip: 'Edit Profil Anak',
+                  onPressed: () {
+                    context.pushNamed(
+                      'editChild',
+                      pathParameters: {'childId': child.id},
+                      extra: child,
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: 'Hapus Profil Anak',
+                  onPressed: () => _confirmDeleteChild(context, ref, child),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ChildSummaryCard(
+          child: child,
+          lastMilestoneStatus: latestMilestone?.status,
+          onTap: () => context.pushNamed('milestone',
+              pathParameters: {'childId': child.id}),
+        ),
+      ],
     );
   }
 
+Future<void> _confirmDeleteChild(
+      BuildContext context, WidgetRef ref, ChildEntity child) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Profil Anak'),
+        content: Text('Hapus ${child.name}? Data akan hilang permanen.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      try {
+        final uid = FirebaseAuth.instance.currentUser!.uid;
+        await ref.read(childRepositoryProvider).deleteChild(uid, child.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Data ${child.name} berhasil dihapus')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal menghapus data: $e')),
+          );
+        }
+      }
+    }
+  }
+  
   Widget _buildGrowthStats(
       BuildContext context, ChildEntity? child, WidgetRef ref) {
     if (child == null) return const SizedBox.shrink();
