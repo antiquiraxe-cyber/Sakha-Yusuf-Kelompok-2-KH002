@@ -10,6 +10,7 @@ import '../../features/child_profile/presentation/screens/child_list_screen.dart
 import '../../features/milestone/presentation/screens/milestone_screen.dart';
 import '../../features/tracking/presentation/screens/tracking_screen.dart';
 import '../../features/child_profile/presentation/screens/edit_child_screen.dart';
+import '../../features/child_profile/domain/entities/child_entity.dart';
 
 class AppRouter {
   AppRouter._();
@@ -77,11 +78,11 @@ class AppRouter {
       GoRoute(
         name: 'editChild',
         path: '/edit-child/:childId',
-       builder: (context, state) {
-       final childData = state.extra;
-       return EditChildScreen(childData: childData);
-  },
-),
+        builder: (context, state) {
+          final childData = state.extra as ChildEntity;
+          return EditChildScreen(childData: childData);
+        },
+      ),
     ],
   );
 }

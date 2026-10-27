@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/child_entity.dart';
-// TODO: Sesuaikan path import model dan provider di bawah dengan path asli proyekmu
-// import '../../domain/models/child_model.dart';
-// import '../providers/child_provider.dart';
+import '../providers/child_provider.dart';
 
 class EditChildScreen extends ConsumerStatefulWidget {
-  final dynamic childData; // Ganti 'dynamic' dengan 'ChildModel' buatan Sakha
+  final ChildEntity childData;
 
   const EditChildScreen({super.key, required this.childData});
 
@@ -27,8 +25,8 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
     super.initState();
     // Pre-fill data lama
     _nameController = TextEditingController(text: widget.childData.name);
-    _selectedDate = widget.childData.birthDate; // Asumsi tipe DateTime
-    _selectedGender = widget.childData.gender; // Asumsi tipe String ('L' / 'P')
+    _selectedDate = widget.childData.birthDate;
+    _selectedGender = widget.childData.gender;
   }
 
   @override
@@ -53,19 +51,20 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
 
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
-    
+    if (_selectedGender == null) return;
+
     setState(() => _isLoading = true);
 
     try {
       // Buat objek anak yang sudah diupdate
       final updatedChild = widget.childData.copyWith(
-        name: _nameController.text,
+        name: _nameController.text.trim(),
         birthDate: _selectedDate,
-        gender: _selectedGender,
+        gender: _selectedGender!,
       );
 
-      // Panggil repository lewat provider (Sesuaikan nama provider buatan Sakha)
-      // await ref.read(childRepositoryProvider).updateChild(updatedChild);
+      // Panggil repository lewat provider buatan Sakha
+      await ref.read(childRepositoryProvider).updateChild(updatedChild);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,9 +97,11 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
               Center(
                 child: Stack(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 50,
-                      backgroundImage: AssetImage('assets/images/default_avatar.png'), // Ganti dengan widget.childData.photoUrl jika ada
+                      backgroundImage: widget.childData.photoUrl != null
+                          ? NetworkImage(widget.childData.photoUrl!) as ImageProvider
+                          : const AssetImage('assets/images/default_avatar.png'),
                     ),
                     Positioned(
                       bottom: 0,
@@ -126,7 +127,8 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
                   labelText: 'Nama Anak',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => value!.isEmpty ? 'Nama tidak boleh kosong' : null,
+                validator: (value) =>
+                    value == null || value.trim().isEmpty ? 'Nama tidak boleh kosong' : null,
               ),
               const SizedBox(height: 16),
               ListTile(
@@ -137,15 +139,15 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
                 onTap: () => _pickDate(context),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedGender,
+              DropdownButtonFormField<Gender>(
+                initialValue: _selectedGender,
                 decoration: const InputDecoration(
                   labelText: 'Jenis Kelamin',
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Laki-laki', child: Text('Laki-laki')),
-                  DropdownMenuItem(value: 'Perempuan', child: Text('Perempuan')),
+                  DropdownMenuItem(value: Gender.male, child: Text('Laki-laki')),
+                  DropdownMenuItem(value: Gender.female, child: Text('Perempuan')),
                 ],
                 onChanged: (val) => setState(() => _selectedGender = val),
                 validator: (value) => value == null ? 'Pilih jenis kelamin' : null,
@@ -156,8 +158,8 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                 ),
-                child: _isLoading 
-                    ? const CircularProgressIndicator(color: Colors.white) 
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Simpan Perubahan'),
               ),
             ],
