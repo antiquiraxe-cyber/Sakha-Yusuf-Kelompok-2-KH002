@@ -48,6 +48,28 @@ class ChildEntity extends Equatable {
     }
   }
 
+  ChildEntity copyWith({
+    String? id,
+    String? parentId,
+    String? name,
+    DateTime? birthDate,
+    Gender? gender,
+    int? childOrder,
+    String? photoUrl,
+    DateTime? createdAt,
+  }) {
+    return ChildEntity(
+      id: id ?? this.id,
+      parentId: parentId ?? this.parentId,
+      name: name ?? this.name,
+      birthDate: birthDate ?? this.birthDate,
+      gender: gender ?? this.gender,
+      childOrder: childOrder ?? this.childOrder,
+      photoUrl: photoUrl ?? this.photoUrl,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

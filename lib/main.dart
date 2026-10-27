@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routing/app_router.dart';
+import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -15,6 +16,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Inisialisasi Local Notifications
+  await NotificationService.initialize();
 
   // Initialize locale data untuk DatePicker dan DateFormat
   await initializeDateFormatting('id_ID', null);

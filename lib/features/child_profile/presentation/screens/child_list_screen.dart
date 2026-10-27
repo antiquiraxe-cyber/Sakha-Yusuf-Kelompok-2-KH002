@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/child_entity.dart';
 import '../providers/child_provider.dart';
+import '../providers/reminder_provider.dart';
 import '../../../../shared/widgets/empty_state_widget.dart';
 import '../../../../shared/widgets/child_summary_card.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
@@ -138,7 +139,7 @@ class ChildListScreen extends ConsumerWidget {
                     // === REMINDER CARD ===
                     AnimatedEntrance(
                       delay: const Duration(milliseconds: 450),
-                      child: _buildReminder(context, selectedChild),
+                      child: _buildReminder(context, selectedChild, ref),
                     ),
 
                     const SizedBox(height: 24), // Bottom padding for FAB space
@@ -611,12 +612,14 @@ Future<void> _confirmDeleteChild(
     );
   }
 
-  /// Pengingat milestone berikutnya
-  Widget _buildReminder(BuildContext context, ChildEntity? child) {
+  /// Pengingat milestone berikutnya & toggle notifikasi lokal
+  Widget _buildReminder(
+      BuildContext context, ChildEntity? child, WidgetRef ref) {
     if (child == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isReminderEnabled = ref.watch(reminderProvider);
 
     // Hitung milestone berikutnya berdasarkan usia
     final ageMonths = child.ageInMonths;
@@ -642,54 +645,88 @@ Future<void> _confirmDeleteChild(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 1),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.notifications_active_outlined,
-              color: iconColor, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isUrgent ? 'Evaluasi Mendekat!' : 'Pengingat',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: iconColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  nextMilestoneAge != null
-                      ? 'Evaluasi milestone usia $nextMilestoneAge bulan untuk ${child.name}.'
-                      : '${child.name} sudah melewati semua rentang usia KPSP. Tetap pantau perkembangannya!',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                if (isUrgent) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 36,
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.pushNamed('milestone',
-                          pathParameters: {'childId': child.id}),
-                      icon: const Icon(Icons.assignment_outlined, size: 18),
-                      label: const Text('Lakukan Sekarang'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorScheme.error,
-                        side: BorderSide(color: colorScheme.error),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.notifications_active_outlined,
+                  color: iconColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isUrgent ? 'Evaluasi Mendekat!' : 'Pengingat',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: iconColor,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
-              ],
+                    const SizedBox(height: 4),
+                    Text(
+                      nextMilestoneAge != null
+                          ? 'Evaluasi milestone usia $nextMilestoneAge bulan untuk ${child.name}.'
+                          : '${child.name} sudah melewati semua rentang usia KPSP. Tetap pantau perkembangannya!',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    if (isUrgent) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 36,
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.pushNamed('milestone',
+                              pathParameters: {'childId': child.id}),
+                          icon: const Icon(Icons.assignment_outlined, size: 18),
+                          label: const Text('Lakukan Sekarang'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colorScheme.error,
+                            side: BorderSide(color: colorScheme.error),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 4),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(
+              'Ingatkan Evaluasi KPSP',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            subtitle: Text(
+              isReminderEnabled
+                  ? 'Pengingat otomatis aktif'
+                  : 'Aktifkan notifikasi pengingat di HP',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            value: isReminderEnabled,
+            activeThumbColor: colorScheme.primary,
+            onChanged: (val) {
+              ref.read(reminderProvider.notifier).toggleReminder(
+                    enabled: val,
+                    child: child,
+                  );
+            },
           ),
         ],
       ),
