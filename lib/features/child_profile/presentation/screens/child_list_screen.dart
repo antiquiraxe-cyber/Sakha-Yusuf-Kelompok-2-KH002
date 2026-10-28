@@ -8,6 +8,8 @@ import '../../domain/entities/child_entity.dart';
 import '../providers/child_provider.dart';
 import '../providers/reminder_provider.dart';
 import '../../../../shared/widgets/empty_state_widget.dart';
+import '../../../../shared/widgets/error_state_widget.dart';
+import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/child_summary_card.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
 import '../../../milestone/presentation/providers/milestone_provider.dart';
@@ -17,9 +19,11 @@ import '../../../tracking/presentation/widgets/growth_evaluation_sheet.dart';
 
 /// Dashboard utama aplikasi LangkahAwal.
 ///
-/// 2 mode:
-/// - Empty State: belum ada data anak → CTA "Tambah Anak"
-/// - Dashboard: ada data anak → summary card + stats + quick actions + pengingat
+/// 3 mode tampilan (Reactive State Handling):
+/// - Loading State: animasi shimmer skeleton saat mengambil data realtime dari Firestore
+/// - Error/Offline State: pesan ramah pengguna jika terjadi kendala jaringan + tombol "Coba Lagi"
+/// - Empty State: jika belum ada anak terdaftar → CTA "Tambah Anak"
+/// - Dashboard Data: jika data ada → summary card + stats + quick actions + pengingat
 ///
 /// Desain mengikuti prinsip mobile-design skill:
 /// - Thumb Zone: tombol aksi utama di area bawah layar
@@ -31,22 +35,16 @@ class ChildListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final children = ref.watch(childListProvider);
+    final childrenAsync = ref.watch(childrenStreamProvider);
     final selectedChild = ref.watch(selectedChildProvider);
-    final isLoading = ref.watch(isLoadingProvider);
 
-    // Loading skeleton saat pertama kali ambil data dari Firestore
-    if (isLoading) {
-      return Scaffold(
+    return childrenAsync.when(
+      loading: () => const Scaffold(
         body: SafeArea(
-          child: _buildLoadingSkeleton(context),
+          child: DashboardSkeletonLoader(),
         ),
-      );
-    }
-
-    // Empty state — belum ada anak
-    if (children.isEmpty) {
-      return Scaffold(
+      ),
+      error: (error, stack) => Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -59,105 +57,143 @@ class ChildListScreen extends ConsumerWidget {
           ],
         ),
         body: SafeArea(
-          child: EmptyStateWidget(
-            icon: Icons.child_care,
-            title: 'Mulai Pantau Si Kecil',
-            description:
-                'Tambahkan data anak Anda untuk mulai memantau tumbuh kembangnya secara teratur.',
-            actionLabel: 'Tambah Anak',
-            onAction: () => context.pushNamed('addChild'),
+          child: ErrorStateWidget(
+            title: 'Gagal Memuat Data',
+            message:
+                'Terjadi kendala saat memuat data anak dari server. Pastikan koneksi internet Anda aktif.',
+            actionLabel: 'Coba Lagi',
+            onRetry: () => ref.invalidate(childrenStreamProvider),
           ),
         ),
-      );
-    }
-
-    // Dashboard — ada data anak
-    return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Responsive: center content on wide screens
-            final maxWidth = 600.0;
-            final horizontalPadding = constraints.maxWidth > maxWidth
-                ? (constraints.maxWidth - maxWidth) / 2
-                : 20.0;
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: maxWidth,
-                  minHeight: constraints.maxHeight -
-                      MediaQuery.of(context).padding.top,
+      ),
+      data: (children) {
+        // Empty state — belum ada anak
+        if (children.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  tooltip: 'Keluar',
+                  onPressed: () => _confirmSignOut(context, ref),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-
-                    // === GREETING HEADER ===
-                    AnimatedEntrance(
-                      delay: const Duration(milliseconds: 50),
-                      child: _buildGreetingHeader(context, ref),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // === CHILD SUMMARY CARD ===
-                    AnimatedEntrance(
-                      delay: const Duration(milliseconds: 150),
-                      child: _buildChildSummaryCard(context, selectedChild, ref),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // === GROWTH STATS ROW ===
-                    AnimatedEntrance(
-                      delay: const Duration(milliseconds: 250),
-                      child: _buildGrowthStats(context, selectedChild, ref),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // === GROWTH EVALUATION CARD ===
-                    AnimatedEntrance(
-                      delay: const Duration(milliseconds: 300),
-                      child: _buildGrowthEvaluationCard(
-                          context, selectedChild, ref),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // === QUICK ACTIONS ===
-                    AnimatedEntrance(
-                      delay: const Duration(milliseconds: 350),
-                      child: _buildQuickActions(context, selectedChild, ref),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // === REMINDER CARD ===
-                    AnimatedEntrance(
-                      delay: const Duration(milliseconds: 450),
-                      child: _buildReminder(context, selectedChild, ref),
-                    ),
-
-                    const SizedBox(height: 24), // Bottom padding for FAB space
-                  ],
-                ),
+              ],
+            ),
+            body: SafeArea(
+              child: EmptyStateWidget(
+                icon: Icons.child_care,
+                title: 'Mulai Pantau Si Kecil',
+                description:
+                    'Tambahkan data anak Anda untuk mulai memantau tumbuh kembangnya secara teratur.',
+                actionLabel: 'Tambah Anak',
+                onAction: () => context.pushNamed('addChild'),
               ),
-            );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.pushNamed('addChild'),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah Anak'),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+            ),
+          );
+        }
+
+        // Dashboard — ada data anak
+        return Scaffold(
+          body: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Responsive: center content on wide screens
+                final maxWidth = 600.0;
+                final horizontalPadding = constraints.maxWidth > maxWidth
+                    ? (constraints.maxWidth - maxWidth) / 2
+                    : 20.0;
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(childrenStreamProvider);
+                  },
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: maxWidth,
+                        minHeight: constraints.maxHeight -
+                            MediaQuery.of(context).padding.top,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+
+                          // === GREETING HEADER ===
+                          AnimatedEntrance(
+                            delay: const Duration(milliseconds: 50),
+                            child: _buildGreetingHeader(context, ref),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // === CHILD SUMMARY CARD ===
+                          AnimatedEntrance(
+                            delay: const Duration(milliseconds: 150),
+                            child: _buildChildSummaryCard(
+                                context, selectedChild, ref),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // === GROWTH STATS ROW ===
+                          AnimatedEntrance(
+                            delay: const Duration(milliseconds: 250),
+                            child: _buildGrowthStats(context, selectedChild, ref),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // === GROWTH EVALUATION CARD ===
+                          AnimatedEntrance(
+                            delay: const Duration(milliseconds: 300),
+                            child: _buildGrowthEvaluationCard(
+                                context, selectedChild, ref),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // === QUICK ACTIONS ===
+                          AnimatedEntrance(
+                            delay: const Duration(milliseconds: 350),
+                            child: _buildQuickActions(
+                                context, selectedChild, ref),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // === REMINDER CARD ===
+                          AnimatedEntrance(
+                            delay: const Duration(milliseconds: 450),
+                            child: _buildReminder(context, selectedChild, ref),
+                          ),
+
+                          const SizedBox(
+                              height: 24), // Bottom padding for FAB space
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => context.pushNamed('addChild'),
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Anak'),
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
+        );
+      },
     );
   }
 
@@ -741,88 +777,6 @@ Future<void> _confirmDeleteChild(
     }
     return null; // Anak sudah > 60 bulan
   }
-
-  /// Loading skeleton untuk state loading
-  Widget _buildLoadingSkeleton(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Greeting skeleton
-          _SkeletonLine(width: 120, height: 24),
-          const SizedBox(height: 8),
-          _SkeletonLine(width: 200, height: 16),
-          const SizedBox(height: 24),
-
-          // Child card skeleton
-          _SkeletonCard(
-            child: Row(
-              children: [
-                _SkeletonCircle(size: 56),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SkeletonLine(width: 100, height: 20),
-                      const SizedBox(height: 8),
-                      _SkeletonLine(width: 150, height: 14),
-                      const SizedBox(height: 8),
-                      _SkeletonLine(width: 80, height: 28),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Stats skeleton
-          Row(
-            children: [
-              Expanded(child: _SkeletonCard(child: _SkeletonLine(width: 60, height: 40))),
-              const SizedBox(width: 12),
-              Expanded(child: _SkeletonCard(child: _SkeletonLine(width: 60, height: 40))),
-              const SizedBox(width: 12),
-              Expanded(child: _SkeletonCard(child: _SkeletonLine(width: 60, height: 40))),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Quick actions skeleton
-          Row(
-            children: [
-              Expanded(child: _SkeletonCard(child: _SkeletonLine(width: 80, height: 80))),
-              const SizedBox(width: 12),
-              Expanded(child: _SkeletonCard(child: _SkeletonLine(width: 80, height: 80))),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Reminder skeleton
-          _SkeletonCard(
-            child: Row(
-              children: [
-                _SkeletonCircle(size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SkeletonLine(width: 80, height: 18),
-                      const SizedBox(height: 8),
-                      _SkeletonLine(width: double.infinity, height: 14),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Tile statistik tumbuh kembang (ringkas)
@@ -937,64 +891,4 @@ class _QuickActionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Skeleton line untuk loading state
-class _SkeletonLine extends StatelessWidget {
-  final double width;
-  final double height;
-
-  const _SkeletonLine({required this.width, required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
-}
-
-/// Skeleton circle untuk loading state
-class _SkeletonCircle extends StatelessWidget {
-  final double size;
-
-  const _SkeletonCircle({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-/// Skeleton card wrapper
-class _SkeletonCard extends StatelessWidget {
-  final Widget child;
-
-  const _SkeletonCard({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: child,
-      ),
-    );
-  }
-}
+}
