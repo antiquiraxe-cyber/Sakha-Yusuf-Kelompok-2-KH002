@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 /// Widget reusable untuk menampilkan empty state di seluruh aplikasi.
-/// Prinsip: tidak boleh ada dead-end screen — selalu ada CTA.
+/// Prinsip: tidak boleh ada dead-end screen — selalu ada CTA yang jelas.
 class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
   final String? actionLabel;
+  final IconData actionIcon;
   final VoidCallback? onAction;
 
   const EmptyStateWidget({
@@ -15,6 +16,7 @@ class EmptyStateWidget extends StatelessWidget {
     required this.title,
     required this.description,
     this.actionLabel,
+    this.actionIcon = Icons.add,
     this.onAction,
   });
 
@@ -24,8 +26,8 @@ class EmptyStateWidget extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -48,7 +50,8 @@ class EmptyStateWidget extends StatelessWidget {
             // Judul
             Text(
               title,
-              style: theme.textTheme.headlineMedium?.copyWith(
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
                 color: colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
@@ -58,8 +61,9 @@ class EmptyStateWidget extends StatelessWidget {
             // Deskripsi
             Text(
               description,
-              style: theme.textTheme.bodyLarge?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
@@ -72,8 +76,19 @@ class EmptyStateWidget extends StatelessWidget {
                 height: 52,
                 child: FilledButton.icon(
                   onPressed: onAction,
-                  icon: const Icon(Icons.add),
-                  label: Text(actionLabel!),
+                  icon: Icon(actionIcon),
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  label: Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
           ],
