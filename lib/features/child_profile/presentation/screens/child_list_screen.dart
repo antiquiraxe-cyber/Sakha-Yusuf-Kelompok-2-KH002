@@ -610,39 +610,81 @@ Future<void> _confirmDeleteChild(
       BuildContext context, ChildEntity? child, WidgetRef ref) {
     final isLoading = ref.watch(isLoadingProvider);
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tombol Cek Milestone
-        Expanded(
-          child: _QuickActionButton(
-            icon: Icons.checklist_rounded,
-            label: 'Cek\nMilestone',
-            color: const Color(0xFF4CAF82),
-            isLoading: isLoading,
-            onTap: () {
-              if (child != null && !isLoading) {
-                context.goNamed('milestone',
-                    pathParameters: {'childId': child.id});
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
+        Row(
+          children: [
+            // Tombol Cek Milestone
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.checklist_rounded,
+                label: 'Cek\nMilestone',
+                color: const Color(0xFF4CAF82),
+                isLoading: isLoading,
+                onTap: () {
+                  if (child != null && !isLoading) {
+                    context.goNamed('milestone',
+                        pathParameters: {'childId': child.id});
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
 
-        // Tombol Catat Tumbuh Kembang
-        Expanded(
-          child: _QuickActionButton(
-            icon: Icons.edit_note_rounded,
-            label: 'Catat\nTumbuh Kembang',
-            color: const Color(0xFFFFA726),
-            isLoading: isLoading,
-            onTap: () {
-              if (child != null && !isLoading) {
-                context.goNamed('tracking',
-                    pathParameters: {'childId': child.id});
-              }
-            },
-          ),
+            // Tombol Catat Tumbuh Kembang
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.edit_note_rounded,
+                label: 'Catat\nTumbuh Kembang',
+                color: const Color(0xFFFFA726),
+                isLoading: isLoading,
+                onTap: () {
+                  if (child != null && !isLoading) {
+                    context.goNamed('tracking',
+                        pathParameters: {'childId': child.id});
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // Tombol Grafik Pertumbuhan
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.show_chart_rounded,
+                label: 'Grafik\nPertumbuhan',
+                color: const Color(0xFF42A5F5),
+                isLoading: isLoading,
+                onTap: () {
+                  if (child != null && !isLoading) {
+                    context.pushNamed('growthChart',
+                        pathParameters: {'childId': child.id});
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Tombol Timeline Milestone
+            Expanded(
+              child: _QuickActionButton(
+                icon: Icons.timeline_rounded,
+                label: 'Timeline\nMilestone',
+                color: const Color(0xFFAB47BC),
+                isLoading: isLoading,
+                onTap: () {
+                  if (child != null && !isLoading) {
+                    context.pushNamed('milestoneTimeline',
+                        pathParameters: {'childId': child.id});
+                  }
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -891,4 +933,4 @@ class _QuickActionButton extends StatelessWidget {
       ),
     );
   }
-}
+}

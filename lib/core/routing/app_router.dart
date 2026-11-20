@@ -8,7 +8,9 @@ import '../../features/child_profile/presentation/providers/child_provider.dart'
 import '../../features/child_profile/presentation/screens/add_child_screen.dart';
 import '../../features/child_profile/presentation/screens/child_list_screen.dart';
 import '../../features/milestone/presentation/screens/milestone_screen.dart';
+import '../../features/milestone/presentation/screens/milestone_timeline_screen.dart';
 import '../../features/tracking/presentation/screens/tracking_screen.dart';
+import '../../features/tracking/presentation/screens/growth_chart_screen.dart';
 import '../../features/child_profile/presentation/screens/edit_child_screen.dart';
 import '../../features/child_profile/domain/entities/child_entity.dart';
 
@@ -65,6 +67,20 @@ class AppRouter {
             path: '/tracking/:childId',
             name: 'tracking',
             builder: (context, state) => TrackingScreen(
+              childId: state.pathParameters['childId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/growth-chart/:childId',
+            name: 'growthChart',
+            builder: (context, state) => GrowthChartScreen(
+              childId: state.pathParameters['childId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/milestone-timeline/:childId',
+            name: 'milestoneTimeline',
+            builder: (context, state) => MilestoneTimelineScreen(
               childId: state.pathParameters['childId']!,
             ),
           ),
