@@ -37,4 +37,27 @@ void main() {
     expect(child.ageInMonths, 12);
     expect(child.ageFormatted, contains('1 tahun'));
   });
+
+  test('ChildEntity copyWith memperbarui field dengan benar', () {
+    final now = DateTime.now();
+    final child = ChildEntity(
+      id: 'c3',
+      parentId: 'u1',
+      name: 'Budi',
+      birthDate: DateTime(2023, 5, 10),
+      gender: Gender.male,
+      childOrder: 1,
+      createdAt: now,
+    );
+
+    final updated = child.copyWith(
+      name: 'Budi Santoso',
+      gender: Gender.female,
+    );
+
+    expect(updated.id, 'c3');
+    expect(updated.name, 'Budi Santoso');
+    expect(updated.gender, Gender.female);
+    expect(updated.birthDate, DateTime(2023, 5, 10));
+  });
 }
