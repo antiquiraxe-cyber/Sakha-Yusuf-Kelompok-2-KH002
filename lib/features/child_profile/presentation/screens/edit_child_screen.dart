@@ -5,9 +5,14 @@ import '../../domain/entities/child_entity.dart';
 import '../providers/child_provider.dart';
 
 class EditChildScreen extends ConsumerStatefulWidget {
-  final ChildEntity childData;
+  final ChildEntity? childData;
+  final String? childId;
 
-  const EditChildScreen({super.key, required this.childData});
+  const EditChildScreen({
+    super.key,
+    this.childData,
+    this.childId,
+  });
 
   @override
   ConsumerState<EditChildScreen> createState() => _EditChildScreenState();
@@ -19,14 +24,27 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
   late DateTime _selectedDate;
   Gender? _selectedGender;
   bool _isLoading = false;
+  bool _initialized = false;
+  ChildEntity? _child;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill data lama
-    _nameController = TextEditingController(text: widget.childData.name);
-    _selectedDate = widget.childData.birthDate;
-    _selectedGender = widget.childData.gender;
+    _nameController = TextEditingController();
+    _selectedDate = DateTime.now();
+    _selectedGender = Gender.male;
+
+    if (widget.childData != null) {
+      _initChild(widget.childData!);
+    }
+  }
+
+  void _initChild(ChildEntity child) {
+    _child = child;
+    _nameController.text = child.name;
+    _selectedDate = child.birthDate;
+    _selectedGender = child.gender;
+    _initialized = true;
   }
 
   @override
@@ -41,6 +59,7 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2010),
       lastDate: DateTime.now(),
+      locale: const Locale('id', 'ID'),
     );
     if (picked != null) {
       setState(() {
@@ -51,31 +70,42 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
 
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedGender == null) return;
+
+    final target = _child ?? widget.childData;
+    if (target == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data profil anak tidak ditemukan')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      // Buat objek anak yang sudah diupdate
-      final updatedChild = widget.childData.copyWith(
+      final updatedChild = target.copyWith(
         name: _nameController.text.trim(),
         birthDate: _selectedDate,
-        gender: _selectedGender!,
+        gender: _selectedGender,
       );
 
-      // Panggil repository lewat provider buatan Sakha
       await ref.read(childRepositoryProvider).updateChild(updatedChild);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil anak berhasil diperbarui')),
+          const SnackBar(
+            content: Text('Profil anak berhasil diperbarui'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
-        Navigator.pop(context); // Kembali ke dashboard
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan: $e')),
+          SnackBar(
+            content: Text('Gagal menyimpan: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -85,6 +115,17 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_initialized) {
+      final children = ref.watch(childListProvider);
+      final found = children.cast<ChildEntity?>().firstWhere(
+            (c) => c?.id == widget.childId,
+            orElse: () => null,
+          );
+      if (found != null) {
+        _initChild(found);
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profil Anak')),
       body: Padding(
@@ -93,26 +134,41 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // Opsional: UI untuk foto profil (CircleAvatar)
               Center(
                 child: Stack(
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundImage: widget.childData.photoUrl != null
-                          ? NetworkImage(widget.childData.photoUrl!) as ImageProvider
-                          : const AssetImage('assets/images/default_avatar.png'),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      backgroundImage: _child?.photoUrl != null
+                          ? NetworkImage(_child!.photoUrl!)
+                          : null,
+                      child: _child?.photoUrl == null
+                          ? Text(
+                              _selectedGender == Gender.female ? '👧' : '👦',
+                              style: const TextStyle(fontSize: 44),
+                            )
+                          : null,
                     ),
                     Positioned(
                       bottom: 0,
                       right: 0,
                       child: CircleAvatar(
                         radius: 18,
-                        backgroundColor: Theme.of(context).primaryColor,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         child: IconButton(
-                          icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                          icon: const Icon(Icons.camera_alt,
+                              size: 18, color: Colors.white),
+                          padding: EdgeInsets.zero,
                           onPressed: () {
-                            // TODO: Logika upload foto <= 2MB ke Firebase Storage
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Fitur foto akan hadir di update berikutnya'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -134,23 +190,35 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Tanggal Lahir'),
-                subtitle: Text(DateFormat('dd MMMM yyyy').format(_selectedDate)),
+                subtitle: Text(DateFormat('dd MMMM yyyy', 'id_ID').format(_selectedDate)),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () => _pickDate(context),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<Gender>(
+                key: ValueKey(_child?.id ?? 'gender_field'),
                 initialValue: _selectedGender,
                 decoration: const InputDecoration(
                   labelText: 'Jenis Kelamin',
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: Gender.male, child: Text('Laki-laki')),
-                  DropdownMenuItem(value: Gender.female, child: Text('Perempuan')),
+                  DropdownMenuItem(
+                    value: Gender.male,
+                    child: Text('Laki-laki'),
+                  ),
+                  DropdownMenuItem(
+                    value: Gender.female,
+                    child: Text('Perempuan'),
+                  ),
                 ],
-                onChanged: (val) => setState(() => _selectedGender = val),
-                validator: (value) => value == null ? 'Pilih jenis kelamin' : null,
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedGender = val);
+                  }
+                },
+                validator: (value) =>
+                    value == null ? 'Pilih jenis kelamin' : null,
               ),
               const SizedBox(height: 32),
               ElevatedButton(
@@ -159,7 +227,14 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
                   minimumSize: const Size.fromHeight(50),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Text('Simpan Perubahan'),
               ),
             ],

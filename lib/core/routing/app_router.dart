@@ -4,15 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/child_profile/domain/entities/child_entity.dart';
 import '../../features/child_profile/presentation/providers/child_provider.dart';
 import '../../features/child_profile/presentation/screens/add_child_screen.dart';
 import '../../features/child_profile/presentation/screens/child_list_screen.dart';
 import '../../features/milestone/presentation/screens/milestone_screen.dart';
-import '../../features/milestone/presentation/screens/milestone_timeline_screen.dart';
 import '../../features/tracking/presentation/screens/tracking_screen.dart';
-import '../../features/tracking/presentation/screens/growth_chart_screen.dart';
 import '../../features/child_profile/presentation/screens/edit_child_screen.dart';
-import '../../features/child_profile/domain/entities/child_entity.dart';
 
 class AppRouter {
   AppRouter._();
@@ -70,20 +68,6 @@ class AppRouter {
               childId: state.pathParameters['childId']!,
             ),
           ),
-          GoRoute(
-            path: '/growth-chart/:childId',
-            name: 'growthChart',
-            builder: (context, state) => GrowthChartScreen(
-              childId: state.pathParameters['childId']!,
-            ),
-          ),
-          GoRoute(
-            path: '/milestone-timeline/:childId',
-            name: 'milestoneTimeline',
-            builder: (context, state) => MilestoneTimelineScreen(
-              childId: state.pathParameters['childId']!,
-            ),
-          ),
         ],
       ),
       GoRoute(
@@ -95,8 +79,10 @@ class AppRouter {
         name: 'editChild',
         path: '/edit-child/:childId',
         builder: (context, state) {
-          final childData = state.extra as ChildEntity;
-          return EditChildScreen(childData: childData);
+          final childData =
+              state.extra is ChildEntity ? state.extra as ChildEntity : null;
+          final childId = state.pathParameters['childId'];
+          return EditChildScreen(childData: childData, childId: childId);
         },
       ),
     ],
