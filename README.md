@@ -1,17 +1,52 @@
-# langkahawal
+# LangkahAwal
 
-A new Flutter project.
+Aplikasi pemantauan tumbuh kembang anak: evaluasi KPSP, catatan antropometri
+(berat, tinggi, lingkar kepala), evaluasi gizi berbasis standar WHO/Kemenkes,
+grafik pertumbuhan, dan pengingat evaluasi lokal.
 
-## Getting Started
+- Flutter 3.47 / Dart 3.13
+- Riverpod untuk state management
+- Firebase Auth, Cloud Firestore, Firebase Storage
+- go_router untuk navigasi
 
-This project is a starting point for a Flutter application.
+## Menjalankan
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter run
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Butuh `google-services.json` di `android/app/` dan konfigurasi Firebase di
+`lib/firebase_options.dart`. Lihat `docs/TUTORIAL-KONEKSI-FIREBASE.md`.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Struktur
+
+```
+lib/
+  core/       tema, routing, service notifikasi, konstanta
+  features/   auth, child_profile, milestone, tracking
+  shared/     widget lintas fitur
+```
+
+Tiap fitur memakai lapisan `domain` (entity + kontrak repository),
+`data` (model + implementasi Firestore/Storage), dan `presentation`
+(provider + screen).
+
+## Build
+
+```bash
+flutter build apk --release
+```
+
+Tanda tangan release dibaca dari `android/key.properties` (lihat
+`android/key.properties.example`). Tanpa file itu, build memakai debug key.
+
+## Deploy Firebase
+
+```bash
+firebase deploy --only firestore:rules,storage
+```
+
+## Kelompok 2 KH002
+
+Sakha Yusuf Pasha (20240801052), Faisal, Nopal, Nunes, Raka, Hana.

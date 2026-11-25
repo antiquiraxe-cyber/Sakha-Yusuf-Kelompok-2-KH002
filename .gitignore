@@ -48,6 +48,11 @@ app.*.map.json
 **/google-services.json
 **/GoogleService-Info.plist
 
+# Release signing
+**/key.properties
+**/*.jks
+**/*.keystore
+
 # Widget Preview related
 .widget_preview/
 

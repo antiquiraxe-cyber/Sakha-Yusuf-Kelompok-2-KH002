@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
@@ -27,6 +28,13 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   final _heightController = TextEditingController();
   final _headController = TextEditingController();
   final _noteController = TextEditingController();
+
+  final _savedRecordKey = GlobalKey();
+  String? _savedRecordId;
+  double? _measurement(String input) {
+    final value = double.tryParse(input.trim().replaceAll(',', '.'));
+    return value != null && value.isFinite && value > 0 ? value : null;
+  }
 
   DateTime _recordDate = DateTime.now();
 
@@ -71,13 +79,15 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     });
   }
 
-  Future<void> _saveRecord() async {
+  Future<void> _saveRecord(ChildEntity child) async {
+    final saving = ref.read(isSavingRecordProvider.notifier);
+    if (saving.state) return;
     if (!_formKey.currentState!.validate()) return;
 
-    ref.read(isSavingRecordProvider.notifier).state = true;
+    saving.state = true;
 
-    final weight = double.parse(_weightController.text);
-    final height = double.parse(_heightController.text);
+    final weight = _measurement(_weightController.text)!;
+    final height = _measurement(_heightController.text)!;
 
     // Simpan data terlebih dahulu agar data ibu aman
     final record = GrowthRecordEntity(
@@ -87,27 +97,46 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       weightKg: weight,
       heightCm: height,
       headCircumferenceCm: _headController.text.isNotEmpty
-          ? double.tryParse(_headController.text)
+          ? _measurement(_headController.text)
           : null,
       note: _noteController.text.isNotEmpty ? _noteController.text : null,
       createdAt: DateTime.now(),
     );
 
-    await ref.read(growthRecordsProvider.notifier).addRecord(record);
-    ref.read(isSavingRecordProvider.notifier).state = false;
+    try {
+      await ref.read(growthRecordsProvider.notifier).addRecord(record);
+    } catch (e) {
+      saving.state = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan catatan: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    saving.state = false;
 
     if (!mounted) return;
 
-    // Evaluasi pertumbuhan secara tenang setelah data tersimpan
-    final children = ref.read(childListProvider);
-    final child = children.cast<ChildEntity?>().firstWhere(
-          (c) => c?.id == widget.childId,
-          orElse: () => null,
-        );
-
+    if (widget.childId != record.childId) return;
+    setState(() {
+      _savedRecordId = record.id;
+      _formKey.currentState?.reset();
+      _weightController.clear();
+      _heightController.clear();
+      _headController.clear();
+      _noteController.clear();
+      _recordDate = DateTime.now();
+    });
+    FocusManager.instance.primaryFocus?.unfocus();
     final eval = GrowthEvaluationService.evaluate(
-      ageInMonths: child?.ageInMonths ?? 12,
-      gender: child?.gender ?? Gender.male,
+      ageInMonths: child.ageInMonthsAt(record.recordDate),
+      gender: child.gender,
       weightKg: weight,
       heightCm: height,
     );
@@ -115,16 +144,27 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     // Tampilkan bottom sheet edukatif hasil evaluasi & panduan nutrisi
     await showGrowthEvaluationSheet(
       context,
-      childName: child?.name ?? 'Si Kecil',
+      childName: child.name,
       eval: eval,
       subtitle: 'Data telah berhasil disimpan',
     );
-    if (mounted) context.goNamed('home');
+    if (!mounted) return;
+    final target = _savedRecordKey.currentContext;
+    if (target != null && target.mounted) {
+      await Scrollable.ensureVisible(
+        target,
+        duration: const Duration(milliseconds: 300),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isSaving = ref.watch(isSavingRecordProvider);
+    final child = ref
+        .watch(childListProvider)
+        .where((c) => c.id == widget.childId)
+        .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -144,6 +184,11 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Text(
+                    child?.name ?? 'Memuat profil anak…',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
                   // Tanggal & Jam Pencatatan
                   InkWell(
                     onTap: _selectDateTime,
@@ -152,7 +197,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Waktu Pencatatan',
                         prefixIcon: Icon(Icons.access_time_rounded),
-                        suffixIcon: Icon(Icons.edit_calendar_outlined, size: 20),
+                        suffixIcon: Icon(
+                          Icons.edit_calendar_outlined,
+                          size: 20,
+                        ),
                       ),
                       child: Text(
                         '${DateFormat('dd MMMM yyyy • HH:mm', 'id_ID').format(_recordDate)} WIB',
@@ -165,11 +213,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   // Berat Badan
                   TextFormField(
                     controller: _weightController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Berat Badan (kg)',
-                      hintText: 'Contoh: 10.5',
+                      hintText: 'Contoh: 10,5',
                       prefixIcon: Icon(Icons.monitor_weight_outlined),
                       suffixText: 'kg',
                     ),
@@ -177,8 +226,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Berat badan harus diisi';
                       }
-                      final v = double.tryParse(value);
-                      if (v == null || v <= 0) {
+                      final v = _measurement(value);
+                      if (v == null) {
                         return 'Masukkan angka berat badan yang valid (> 0)';
                       }
                       return null;
@@ -189,11 +238,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   // Tinggi Badan
                   TextFormField(
                     controller: _heightController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Tinggi/Panjang Badan (cm)',
-                      hintText: 'Contoh: 75.0',
+                      hintText: 'Contoh: 75,0',
                       prefixIcon: Icon(Icons.height),
                       suffixText: 'cm',
                     ),
@@ -201,8 +251,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Tinggi badan harus diisi';
                       }
-                      final v = double.tryParse(value);
-                      if (v == null || v <= 0) {
+                      final v = _measurement(value);
+                      if (v == null) {
                         return 'Masukkan angka tinggi badan yang valid (> 0)';
                       }
                       return null;
@@ -213,17 +263,18 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   // Lingkar Kepala (Opsional)
                   TextFormField(
                     controller: _headController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Lingkar Kepala (cm) - Opsional',
-                      hintText: 'Contoh: 45.0',
+                      hintText: 'Contoh: 45,0',
                       prefixIcon: Icon(Icons.face),
                       suffixText: 'cm',
                     ),
                     validator: (value) {
                       if (value != null && value.isNotEmpty) {
-                        if (double.tryParse(value) == null) {
+                        if (_measurement(value) == null) {
                           return 'Masukkan angka yang valid';
                         }
                       }
@@ -247,7 +298,9 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
 
                   // Submit Button
                   FilledButton.icon(
-                    onPressed: isSaving ? null : _saveRecord,
+                    onPressed: isSaving || child == null
+                        ? null
+                        : () => _saveRecord(child),
                     icon: isSaving
                         ? SizedBox(
                             width: 24,
@@ -281,9 +334,9 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     final colorScheme = theme.colorScheme;
     final children = ref.watch(childListProvider);
     final child = children.cast<ChildEntity?>().firstWhere(
-          (c) => c?.id == widget.childId,
-          orElse: () => null,
-        );
+      (c) => c?.id == widget.childId,
+      orElse: () => null,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,10 +344,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Riwayat Pertumbuhan',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Riwayat Pertumbuhan',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const Icon(Icons.history_rounded, size: 20),
@@ -314,18 +369,35 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
               color: colorScheme.errorContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              'Gagal memuat riwayat: $err',
-              style: TextStyle(color: colorScheme.error),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 18,
+                  color: colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Gagal memuat riwayat. Periksa koneksi lalu coba lagi.',
+                    style: TextStyle(color: colorScheme.error),
+                  ),
+                ),
+              ],
             ),
           ),
           data: (records) {
             if (records.isEmpty) {
               return Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.5),
@@ -333,8 +405,11 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.monitor_weight_outlined,
-                        size: 36, color: colorScheme.outline),
+                    Icon(
+                      Icons.monitor_weight_outlined,
+                      size: 36,
+                      color: colorScheme.outline,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Belum ada riwayat timbangan',
@@ -351,7 +426,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
             return Column(
               children: records.map((record) {
                 final eval = GrowthEvaluationService.evaluate(
-                  ageInMonths: child?.ageInMonths ?? 12,
+                  ageInMonths: child?.ageInMonthsAt(record.recordDate) ?? 12,
                   gender: child?.gender ?? Gender.male,
                   weightKg: record.weightKg,
                   heightCm: record.heightCm,
@@ -367,25 +442,29 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                     statusBadgeBg = colorScheme.errorContainer;
                     statusBadgeColor = colorScheme.error;
                     statusBadgeIcon = Icons.error_outline_rounded;
-                    statusBadgeLabel = eval.stuntingStatus == StuntingStatus.severelyStunted
+                    statusBadgeLabel =
+                        eval.stuntingStatus == StuntingStatus.severelyStunted
                         ? 'Sangat Pendek'
                         : (eval.weightStatus == WeightStatus.obese
-                            ? 'Obesitas'
-                            : (eval.weightStatus == WeightStatus.severelyUnderweight
-                                ? 'Gizi Buruk'
-                                : 'Peringatan'));
+                              ? 'Obesitas'
+                              : (eval.weightStatus ==
+                                        WeightStatus.severelyUnderweight
+                                    ? 'Gizi Buruk'
+                                    : 'Peringatan'));
                     break;
                   case GrowthAlertLevel.warning:
                     statusBadgeBg = colorScheme.tertiaryContainer;
                     statusBadgeColor = colorScheme.tertiary;
                     statusBadgeIcon = Icons.warning_amber_rounded;
-                    statusBadgeLabel = eval.stuntingStatus == StuntingStatus.stunted
+                    statusBadgeLabel =
+                        eval.stuntingStatus == StuntingStatus.stunted
                         ? 'Pendek'
                         : (eval.weightStatus == WeightStatus.underweight
-                            ? 'Gizi Kurang'
-                            : (eval.weightStatus == WeightStatus.overweightRisk
-                                ? 'Risiko Lebih'
-                                : 'Waspada'));
+                              ? 'Gizi Kurang'
+                              : (eval.weightStatus ==
+                                        WeightStatus.overweightRisk
+                                    ? 'Risiko Lebih'
+                                    : 'Waspada'));
                     break;
                   case GrowthAlertLevel.normal:
                     statusBadgeBg = colorScheme.primaryContainer;
@@ -396,6 +475,9 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                 }
 
                 return Card(
+                  key: record.id == _savedRecordId
+                      ? _savedRecordKey
+                      : ValueKey(record.id),
                   margin: const EdgeInsets.only(bottom: 12),
                   elevation: 0.5,
                   shape: RoundedRectangleBorder(
@@ -421,22 +503,33 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.access_time_rounded,
-                                      size: 16, color: colorScheme.outline),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '${DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(record.recordDate)} WIB',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time_rounded,
+                                      size: 16,
+                                      color: colorScheme.outline,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '${DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(record.recordDate)} WIB',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               IconButton(
-                                icon: Icon(Icons.delete_outline,
-                                    size: 20, color: colorScheme.error),
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  size: 20,
+                                  color: colorScheme.error,
+                                ),
                                 tooltip: 'Hapus Catatan',
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
@@ -453,13 +546,15 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                               _buildHistoryBadge(
                                 context,
                                 icon: Icons.monitor_weight_outlined,
-                                label: 'BB: ${record.weightKg.toStringAsFixed(1)} kg',
+                                label:
+                                    'BB: ${record.weightKg.toStringAsFixed(1)} kg',
                                 color: colorScheme.primary,
                               ),
                               _buildHistoryBadge(
                                 context,
                                 icon: Icons.height,
-                                label: 'TB: ${record.heightCm.toStringAsFixed(1)} cm',
+                                label:
+                                    'TB: ${record.heightCm.toStringAsFixed(1)} cm',
                                 color: AppTheme.metricHeight,
                               ),
                               if (record.headCircumferenceCm != null)
@@ -472,19 +567,26 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                 ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: statusBadgeBg,
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                      color: statusBadgeColor
-                                          .withValues(alpha: 0.3)),
+                                    color: statusBadgeColor.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(statusBadgeIcon,
-                                        size: 13, color: statusBadgeColor),
+                                    Icon(
+                                      statusBadgeIcon,
+                                      size: 13,
+                                      color: statusBadgeColor,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       statusBadgeLabel,
@@ -499,7 +601,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                               ),
                             ],
                           ),
-                          if (record.note != null && record.note!.isNotEmpty) ...[
+                          if (record.note != null &&
+                              record.note!.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(
                               'Catatan: ${record.note}',
@@ -513,17 +616,22 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Text(
-                                'Lihat Hasil & Rekomendasi Gizi',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: colorScheme.primary,
+                              Flexible(
+                                child: Text(
+                                  'Lihat Hasil & Rekomendasi Gizi',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.primary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              Icon(Icons.arrow_forward_ios_rounded,
-                                  size: 11, color: colorScheme.primary),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 11,
+                                color: colorScheme.primary,
+                              ),
                             ],
                           ),
                         ],
@@ -574,7 +682,9 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Catatan'),
-        content: const Text('Apakah Anda yakin ingin menghapus catatan pertumbuhan ini?'),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus catatan pertumbuhan ini?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

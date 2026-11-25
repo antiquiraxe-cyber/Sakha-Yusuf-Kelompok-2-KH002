@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/error_state_widget.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
 import '../../../child_profile/presentation/providers/child_provider.dart';
+import '../../domain/entities/growth_metric.dart';
 import '../../domain/entities/growth_record_entity.dart';
 import '../providers/growth_record_provider.dart';
 import '../data/who_growth_standards.dart';
-
-/// Tab yang ditampilkan di Growth Chart
-enum GrowthChartTab { weight, height, headCircumference }
+import '../widgets/kpsp_progress_chart.dart';
 
 class GrowthChartScreen extends ConsumerStatefulWidget {
   final String childId;
@@ -29,7 +30,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -42,13 +43,13 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
   Widget build(BuildContext context) {
     final children = ref.watch(childListProvider);
     final child = children.cast<ChildEntity?>().firstWhere(
-          (c) => c?.id == widget.childId,
-          orElse: () => null,
-        );
+      (c) => c?.id == widget.childId,
+      orElse: () => null,
+    );
 
     if (child == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Grafik Pertumbuhan')),
+        appBar: AppBar(title: const Text('Grafik Tumbuh Kembang')),
         body: const Center(child: Text('Data anak tidak ditemukan')),
       );
     }
@@ -57,37 +58,40 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Grafik Pertumbuhan'),
+        title: const Text('Grafik Tumbuh Kembang'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.goNamed('home'),
         ),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'Berat Badan'),
             Tab(text: 'Tinggi Badan'),
             Tab(text: 'Lingkar Kepala'),
+            Tab(text: 'KPSP'),
           ],
         ),
       ),
-      body: recordsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
-        data: (records) {
-          if (records.isEmpty) {
-            return _buildEmptyState(context);
-          }
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildChartView(context, child, records, GrowthChartTab.weight),
-              _buildChartView(context, child, records, GrowthChartTab.height),
-              _buildChartView(
-                  context, child, records, GrowthChartTab.headCircumference),
-            ],
-          );
-        },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          for (final tab in GrowthChartTab.values)
+            recordsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, _) => ErrorStateWidget(
+                onRetry: () =>
+                    ref.invalidate(growthRecordsStreamProvider(child.id)),
+              ),
+              data: (records) => records.isEmpty
+                  ? _buildEmptyState(context)
+                  : _buildChartView(context, child, records, tab),
+            ),
+          KpspProgressChart(childId: child.id, childName: child.name),
+        ],
       ),
     );
   }
@@ -107,14 +111,15 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
           const SizedBox(height: 8),
           Text(
             'Catat pertumbuhan anak untuk melihat grafik',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => context.pushNamed('tracking',
-                pathParameters: {'childId': widget.childId}),
+            onPressed: () => context.pushNamed(
+              'tracking',
+              pathParameters: {'childId': widget.childId},
+            ),
             icon: const Icon(Icons.add),
             label: const Text('Tambah Catatan'),
           ),
@@ -162,7 +167,10 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
     // Generate data points
     final dataPoints = <FlSpot>[];
     for (final record in sortedRecords) {
-      final ageInMonths = _calculateAgeAtRecord(child.birthDate, record.recordDate);
+      final ageInMonths = _calculateAgeAtRecord(
+        child.birthDate,
+        record.recordDate,
+      );
       double? value;
 
       switch (tab) {
@@ -184,18 +192,17 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
 
     if (dataPoints.isEmpty) {
       return Center(
-        child: Text(
-          'Tidak ada data $title',
-          style: theme.textTheme.bodyLarge,
-        ),
+        child: Text('Tidak ada data $title', style: theme.textTheme.bodyLarge),
       );
     }
 
+    final previous = dataPoints.length > 1
+        ? dataPoints[dataPoints.length - 2].y
+        : null;
+    final change = previous == null ? null : dataPoints.last.y - previous;
+
     // Get WHO standards
-    final whoStandards = WhoGrowthStandards.getStandards(
-      tab,
-      child.gender,
-    );
+    final whoStandards = WhoGrowthStandards.getStandards(tab, child.gender);
 
     // Calculate Y axis range
     final allValues = [
@@ -203,13 +210,18 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
       ...whoStandards.p3.map((p) => p.y),
       ...whoStandards.p97.map((p) => p.y),
     ];
-    final minY = (allValues.reduce((a, b) => a < b ? a : b) * 0.9).floorToDouble();
-    final maxY = (allValues.reduce((a, b) => a > b ? a : b) * 1.1).ceilToDouble();
+    final minY = (allValues.reduce((a, b) => a < b ? a : b) * 0.9)
+        .floorToDouble();
+    final maxY = (allValues.reduce((a, b) => a > b ? a : b) * 1.1)
+        .ceilToDouble();
 
     // Calculate X axis range based on data
     final minX = 0.0;
-    final maxX = (dataPoints.map((p) => p.x).reduce((a, b) => a > b ? a : b) + 6)
-        .clamp(12.0, 60.0);
+    final maxX =
+        (dataPoints.map((p) => p.x).reduce((a, b) => a > b ? a : b) + 6).clamp(
+          12.0,
+          60.0,
+        );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -246,8 +258,9 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                   ),
                   if (dataPoints.isNotEmpty) ...[
                     const Divider(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 12,
                       children: [
                         _buildStatItem(
                           context,
@@ -255,20 +268,13 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                           '${dataPoints.last.y.toStringAsFixed(1)} $unit',
                           lineColor,
                         ),
-                        _buildStatItem(
-                          context,
-                          'Pertama',
-                          '${dataPoints.first.y.toStringAsFixed(1)} $unit',
-                          colorScheme.onSurfaceVariant,
-                        ),
-                        _buildStatItem(
-                          context,
-                          'Perubahan',
-                          '${(dataPoints.last.y - dataPoints.first.y) > 0 ? '+' : ''}${(dataPoints.last.y - dataPoints.first.y).toStringAsFixed(1)} $unit',
-                          (dataPoints.last.y - dataPoints.first.y) >= 0
-                              ? AppTheme.statusSesuai
-                              : AppTheme.statusPenyimpangan,
-                        ),
+                        if (change != null)
+                          _buildStatItem(
+                            context,
+                            'Sejak catatan sebelumnya',
+                            '${change > 0 ? '+' : ''}${change.toStringAsFixed(1)} $unit',
+                            colorScheme.onSurface,
+                          ),
                       ],
                     ),
                   ],
@@ -278,6 +284,11 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
           ),
           const SizedBox(height: 24),
 
+          if (dataPoints.length == 1)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text('Butuh minimal 2 catatan untuk melihat tren.'),
+            ),
           // Legend
           _buildLegend(context, lineColor),
           const SizedBox(height: 16),
@@ -313,7 +324,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                       interval: 6,
                       getTitlesWidget: (value, meta) => Text(
                         value.toInt().toString(),
-                        style: const TextStyle(fontSize: 10),
+                        style: theme.textTheme.labelMedium,
                       ),
                     ),
                   ),
@@ -325,7 +336,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                       interval: (maxY - minY) / 5,
                       getTitlesWidget: (value, meta) => Text(
                         value.toStringAsFixed(0),
-                        style: const TextStyle(fontSize: 10),
+                        style: theme.textTheme.labelMedium,
                       ),
                     ),
                   ),
@@ -342,14 +353,23 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                 ),
                 lineBarsData: [
                   // WHO P97 (upper bound)
-                  _buildWhoLine(whoStandards.p97,
-                      colorScheme.error.withValues(alpha: 0.45), maxX),
+                  _buildWhoLine(
+                    whoStandards.p97,
+                    colorScheme.error.withValues(alpha: 0.45),
+                    maxX,
+                  ),
                   // WHO P50 (median)
-                  _buildWhoLine(whoStandards.p50,
-                      colorScheme.primary.withValues(alpha: 0.5), maxX),
+                  _buildWhoLine(
+                    whoStandards.p50,
+                    colorScheme.primary.withValues(alpha: 0.5),
+                    maxX,
+                  ),
                   // WHO P3 (lower bound)
-                  _buildWhoLine(whoStandards.p3,
-                      colorScheme.error.withValues(alpha: 0.45), maxX),
+                  _buildWhoLine(
+                    whoStandards.p3,
+                    colorScheme.error.withValues(alpha: 0.45),
+                    maxX,
+                  ),
                   // Child's data
                   LineChartBarData(
                     spots: dataPoints,
@@ -361,11 +381,11 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                       show: true,
                       getDotPainter: (spot, percent, barData, index) =>
                           FlDotCirclePainter(
-                        radius: 5,
-                        color: lineColor,
-                        strokeWidth: 2,
-                        strokeColor: colorScheme.surface,
-                      ),
+                            radius: 5,
+                            color: lineColor,
+                            strokeWidth: 2,
+                            strokeColor: colorScheme.surface,
+                          ),
                     ),
                     belowBarData: BarAreaData(
                       show: true,
@@ -422,8 +442,10 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
 
             if (value == null) return const SizedBox.shrink();
 
-            final ageAtRecord =
-                _calculateAgeAtRecord(child.birthDate, record.recordDate);
+            final ageAtRecord = _calculateAgeAtRecord(
+              child.birthDate,
+              record.recordDate,
+            );
 
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
@@ -445,22 +467,23 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
   }
 
   Widget _buildStatItem(
-      BuildContext context, String label, String value, Color color) {
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Column(
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );
@@ -473,10 +496,16 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
       runSpacing: 8,
       children: [
         _buildLegendItem(context, 'Data Anak', lineColor),
-        _buildLegendItem(context, 'Median WHO',
-            colorScheme.primary.withValues(alpha: 0.5)),
-        _buildLegendItem(context, 'Batas Normal (P3-P97)',
-            colorScheme.error.withValues(alpha: 0.45)),
+        _buildLegendItem(
+          context,
+          'Median WHO',
+          colorScheme.primary.withValues(alpha: 0.5),
+        ),
+        _buildLegendItem(
+          context,
+          'Batas Normal (P3-P97)',
+          colorScheme.error.withValues(alpha: 0.45),
+        ),
       ],
     );
   }
@@ -494,9 +523,8 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
+        Flexible(
+          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
         ),
       ],
     );
@@ -505,7 +533,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
   LineChartBarData _buildWhoLine(List<FlSpot> spots, Color color, double maxX) {
     // Filter spots to maxX
     final filteredSpots = spots.where((s) => s.x <= maxX).toList();
-    
+
     return LineChartBarData(
       spots: filteredSpots,
       isCurved: true,
@@ -519,7 +547,8 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
 
   int _calculateAgeAtRecord(DateTime birthDate, DateTime recordDate) {
     int months =
-        (recordDate.year - birthDate.year) * 12 + (recordDate.month - birthDate.month);
+        (recordDate.year - birthDate.year) * 12 +
+        (recordDate.month - birthDate.month);
     if (recordDate.day < birthDate.day) {
       months--;
     }

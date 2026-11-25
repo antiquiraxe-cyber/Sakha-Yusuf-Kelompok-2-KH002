@@ -1,0 +1,6 @@
+# Salin file ini menjadi android/key.properties, lalu isi nilainya.
+# File key.properties dan *.jks tidak pernah di-commit.
+storePassword=ISI_PASSWORD_KEYSTORE
+keyPassword=ISI_PASSWORD_KEY
+keyAlias=upload
+storeFile=../upload-keystore.jks

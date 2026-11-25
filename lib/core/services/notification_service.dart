@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -26,6 +27,17 @@ class NotificationService {
     try {
       // Inisialisasi timezone database untuk penjadwalan
       tz.initializeTimeZones();
+
+      // Tanpa ini, tz.local tetap UTC dan jadwal 09:00 bergeser 7 jam.
+      try {
+        final info = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(info.identifier));
+      } catch (e) {
+        // ponytail: fallback WIB kalau plugin gagal/identifier tidak dikenal.
+        // Ganti dengan pembacaan offset kalau perlu dukung zona lain.
+        tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
+        debugPrint('Fallback zona waktu Asia/Jakarta: $e');
+      }
 
       const androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');

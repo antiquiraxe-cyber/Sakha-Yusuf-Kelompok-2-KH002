@@ -7,3 +7,7 @@ abstract class ChildRepository {
   Future<void> updateChild(ChildEntity child);
   Future<void> deleteChild(String parentId, String childId);
 }
+
+/// Subkoleksi di bawah children/{childId} yang harus ikut terhapus.
+/// Harus sama dengan path di firestore.rules.
+const List<String> childSubcollections = ['growth_records', 'milestones'];

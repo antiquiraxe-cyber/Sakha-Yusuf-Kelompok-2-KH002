@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
 import '../../../child_profile/presentation/providers/child_provider.dart';
@@ -18,9 +19,9 @@ class MilestoneTimelineScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final children = ref.watch(childListProvider);
     final child = children.cast<ChildEntity?>().firstWhere(
-          (c) => c?.id == childId,
-          orElse: () => null,
-        );
+      (c) => c?.id == childId,
+      orElse: () => null,
+    );
 
     if (child == null) {
       return Scaffold(
@@ -56,12 +57,29 @@ class MilestoneTimelineScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     // Kelompok usia KPSP yang valid
-    final kpspAges = [3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60, 66, 72];
-    
+    final kpspAges = [
+      3,
+      6,
+      9,
+      12,
+      15,
+      18,
+      21,
+      24,
+      30,
+      36,
+      42,
+      48,
+      54,
+      60,
+      66,
+      72,
+    ];
+
     // Map history by age
     final historyByAge = <int, MilestoneResultEntity>{};
     for (final result in history) {
-      historyByAge[result.ageMonthEvaluated] = result;
+      historyByAge.putIfAbsent(result.ageMonthEvaluated, () => result);
     }
 
     // Current age
@@ -107,7 +125,12 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  _buildProgressIndicator(context, history, kpspAges, currentAge),
+                  _buildProgressIndicator(
+                    context,
+                    history,
+                    kpspAges,
+                    currentAge,
+                  ),
                 ],
               ),
             ),
@@ -142,13 +165,15 @@ class MilestoneTimelineScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Timeline items
-          ...kpspAges.map((age) => _buildTimelineItem(
-                context,
-                age,
-                historyByAge[age],
-                currentAge,
-                childId,
-              )),
+          ...kpspAges.map(
+            (age) => _buildTimelineItem(
+              context,
+              age,
+              historyByAge[age],
+              currentAge,
+              childId,
+            ),
+          ),
         ],
       ),
     );
@@ -164,8 +189,12 @@ class MilestoneTimelineScreen extends ConsumerWidget {
 
     // Count completed evaluations up to current age
     final applicableAges = kpspAges.where((age) => age <= currentAge).length;
-    final completedCount = history.length;
-    final percentage = applicableAges > 0 
+    final completedCount = history
+        .map((r) => r.ageMonthEvaluated)
+        .where((age) => age <= currentAge && kpspAges.contains(age))
+        .toSet()
+        .length;
+    final percentage = applicableAges > 0
         ? (completedCount / applicableAges * 100).clamp(0, 100)
         : 0.0;
 
@@ -185,16 +214,15 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                   percentage >= 80
                       ? AppTheme.statusSesuai
                       : percentage >= 50
-                          ? AppTheme.statusMeragukan
-                          : AppTheme.statusPenyimpangan,
+                      ? AppTheme.statusMeragukan
+                      : AppTheme.statusPenyimpangan,
                 ),
               ),
               Center(
                 child: Text(
                   '${percentage.toInt()}%',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -226,9 +254,15 @@ class MilestoneTimelineScreen extends ConsumerWidget {
     ];
 
     // Calculate overall status distribution
-    int sesuaiCount = history.where((h) => h.status == MilestoneStatus.sesuai).length;
-    int meragukanCount = history.where((h) => h.status == MilestoneStatus.meragukan).length;
-    int penyimpanganCount = history.where((h) => h.status == MilestoneStatus.penyimpangan).length;
+    int sesuaiCount = history
+        .where((h) => h.status == MilestoneStatus.sesuai)
+        .length;
+    int meragukanCount = history
+        .where((h) => h.status == MilestoneStatus.meragukan)
+        .length;
+    int penyimpanganCount = history
+        .where((h) => h.status == MilestoneStatus.penyimpangan)
+        .length;
 
     return Column(
       children: [
@@ -271,8 +305,9 @@ class MilestoneTimelineScreen extends ConsumerWidget {
         ],
 
         // Aspect icons row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
           children: aspects.map((aspect) {
             return Column(
               children: [
@@ -282,11 +317,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                     color: colorScheme.primaryContainer.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    aspect.$3,
-                    color: colorScheme.primary,
-                    size: 24,
-                  ),
+                  child: Icon(aspect.$3, color: colorScheme.primary, size: 24),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -322,16 +353,13 @@ class MilestoneTimelineScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             count.toString(),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold, color: color),
           ),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: color),
             textAlign: TextAlign.center,
           ),
         ],
@@ -421,10 +449,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                   ),
                 ),
                 Expanded(
-                  child: Container(
-                    width: 2,
-                    color: colorScheme.outlineVariant,
-                  ),
+                  child: Container(width: 2, color: colorScheme.outlineVariant),
                 ),
               ],
             ),
@@ -448,18 +473,22 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: (!isFuture && !isCompleted)
-                      ? () => context.pushNamed('milestone',
-                          pathParameters: {'childId': childId})
+                      ? () => context.pushNamed(
+                          'milestone',
+                          pathParameters: {'childId': childId},
+                        )
                       : isCompleted
-                          ? () => _showResultDetail(context, result)
-                          : null,
+                      ? () => _showResultDetail(context, result)
+                      : null,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
                             Text(
                               '$age bulan',
@@ -547,7 +576,8 @@ class MilestoneTimelineScreen extends ConsumerWidget {
       case MilestoneStatus.meragukan:
         statusColor = AppTheme.statusMeragukan;
         statusTitle = 'Perlu Pemantauan';
-        statusDesc = 'Perkembangan masih dalam batas wajar, tapi perlu perhatian lebih.';
+        statusDesc =
+            'Perkembangan masih dalam batas wajar, tapi perlu perhatian lebih.';
         break;
       case MilestoneStatus.penyimpangan:
         statusColor = AppTheme.statusPenyimpangan;
@@ -580,8 +610,8 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                     result.status == MilestoneStatus.sesuai
                         ? Icons.check_circle
                         : result.status == MilestoneStatus.meragukan
-                            ? Icons.warning_rounded
-                            : Icons.error_rounded,
+                        ? Icons.warning_rounded
+                        : Icons.error_rounded,
                     color: statusColor,
                     size: 28,
                   ),
@@ -622,10 +652,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Skor',
-                        style: theme.textTheme.bodyMedium,
-                      ),
+                      Text('Skor', style: theme.textTheme.bodyMedium),
                       Text(
                         '${result.totalYes} dari ${result.answers.length} (Ya)',
                         style: theme.textTheme.titleMedium?.copyWith(
@@ -636,10 +663,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    statusDesc,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  Text(statusDesc, style: theme.textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -666,8 +690,18 @@ class MilestoneTimelineScreen extends ConsumerWidget {
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Ags',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }

@@ -1,11 +1,11 @@
 {
-    "name": "langkahawal",
-    "short_name": "langkahawal",
+    "name": "LangkahAwal",
+    "short_name": "LangkahAwal",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F1F1EC",
+    "theme_color": "#22231F",
+    "description": "Pemantauan tumbuh kembang anak: KPSP, catatan antropometri, dan grafik pertumbuhan.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

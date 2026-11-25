@@ -25,9 +25,15 @@ class ChildEntity extends Equatable {
 
   // Menghitung usia kronologis dalam bulan
   int get ageInMonths {
-    final now = DateTime.now();
-    int months = (now.year - birthDate.year) * 12 + (now.month - birthDate.month);
-    if (now.day < birthDate.day) {
+    return ageInMonthsAt(DateTime.now());
+  }
+
+  // Usia dalam bulan pada tanggal tertentu — dipakai saat mengevaluasi
+  // catatan lama agar status gizi dihitung dengan usia saat diukur.
+  int ageInMonthsAt(DateTime date) {
+    int months =
+        (date.year - birthDate.year) * 12 + (date.month - birthDate.month);
+    if (date.day < birthDate.day) {
       months--;
     }
     return months < 0 ? 0 : months;

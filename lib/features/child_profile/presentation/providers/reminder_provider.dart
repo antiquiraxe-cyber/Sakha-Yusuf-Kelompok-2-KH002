@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../domain/entities/child_entity.dart';
 
@@ -30,20 +31,26 @@ class ReminderStateNotifier extends StateNotifier<bool> {
       if (child != null) {
         final notifId = child.id.hashCode;
         final nextMilestone = _getNextMilestoneAge(child.ageInMonths);
+        final scheduledDate =
+            nextMilestone == null ? null : _milestoneDate(child, nextMilestone);
 
-        // Jadwalkan pengingat berkala
-        await NotificationService.scheduleKpspReminder(
-          id: notifId,
-          childName: child.name,
-          nextMilestoneAge: nextMilestone,
-        );
+        // Jadwalkan pengingat pada tanggal milestone KPSP berikutnya.
+        if (scheduledDate != null) {
+          await NotificationService.scheduleKpspReminder(
+            id: notifId,
+            childName: child.name,
+            nextMilestoneAge: nextMilestone,
+            scheduledDate: scheduledDate,
+          );
+        }
 
         // Berikan notifikasi konfirmasi bahwa pengingat telah aktif
         await NotificationService.showNotification(
           id: 999,
           title: 'Pengingat KPSP Aktif 🔔',
-          body:
-              'Pengingat evaluasi tumbuh kembang untuk ${child.name} berhasil diaktifkan.',
+          body: scheduledDate == null
+              ? 'Semua rentang usia KPSP untuk ${child.name} sudah terlewati.'
+              : 'Pengingat evaluasi ${nextMilestone!} bulan untuk ${child.name} aktif.',
         );
       }
     } else {
@@ -53,11 +60,26 @@ class ReminderStateNotifier extends StateNotifier<bool> {
   }
 
   int? _getNextMilestoneAge(int currentAgeMonths) {
-    const kpspAges = [3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60];
-    for (final age in kpspAges) {
+    for (final age in AppConstants.kpspAgeMonths) {
       if (age >= currentAgeMonths) return age;
     }
     return null;
+  }
+
+  /// Tanggal pengingat = tanggal anak mencapai usia milestone, jam 09:00.
+  /// Kalau tanggal itu sudah lewat, ingatkan besok pagi.
+  DateTime? _milestoneDate(ChildEntity child, int milestoneAge) {
+    final target = DateTime(
+      child.birthDate.year,
+      child.birthDate.month + milestoneAge,
+      child.birthDate.day,
+      9,
+    );
+    final now = DateTime.now();
+    if (target.isAfter(now)) return target;
+
+    final tomorrow = now.add(const Duration(days: 1));
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9);
   }
 }
 

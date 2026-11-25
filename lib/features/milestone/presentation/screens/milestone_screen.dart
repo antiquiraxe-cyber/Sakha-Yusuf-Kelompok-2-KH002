@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../data/kpsp_question_bank.dart';
 import '../../domain/entities/milestone_entity.dart';
@@ -28,13 +28,14 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
     // Ambil data anak berdasarkan childId dari provider
     final children = ref.watch(childListProvider);
     final child = children.cast<ChildEntity?>().firstWhere(
-          (c) => c?.id == widget.childId,
-          orElse: () => null,
-        );
+      (c) => c?.id == widget.childId,
+      orElse: () => null,
+    );
 
     // Hitung usia evaluasi KPSP yang tepat
-    final evalAgeMonth =
-        child == null ? null : KpspQuestionBank.getNearestAge(child.ageInMonths);
+    final evalAgeMonth = child == null
+        ? null
+        : KpspQuestionBank.getNearestAge(child.ageInMonths);
 
     // Anak belum ada atau usianya belum masuk rentang KPSP (< 3 bulan)
     if (evalAgeMonth == null) {
@@ -42,12 +43,17 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
     }
 
     final questions = ref.watch(kpspQuestionsProvider(evalAgeMonth));
-    final answers = ref.watch(milestoneAnswersProvider);
-    final answersNotifier = ref.read(milestoneAnswersProvider.notifier);
+    final answersKey = '${widget.childId}:$evalAgeMonth';
+    final answers = ref.watch(milestoneAnswersProvider(answersKey));
+    final saving = ref.watch(milestoneSavingProvider(answersKey));
+    final answersNotifier = ref.read(
+      milestoneAnswersProvider(answersKey).notifier,
+    );
 
     final answeredCount = answers.values.where((v) => v != null).length;
     final totalYes = answers.values.where((v) => v == true).length;
-    final isComplete = questions.isNotEmpty && answeredCount == questions.length;
+    final isComplete =
+        questions.isNotEmpty && answeredCount == questions.length;
     final progress = questions.isEmpty
         ? 0
         : (answeredCount / questions.length * 100).toInt();
@@ -57,8 +63,10 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
         title: const Text('Evaluasi KPSP'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.goNamed('home'),
         ),
+        actionsPadding: const EdgeInsetsDirectional.only(end: 16),
         actions: [
           IconButton(
             icon: const Icon(Icons.timeline_rounded),
@@ -71,9 +79,9 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
           Text(
             '$answeredCount/${questions.length}',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -86,7 +94,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Evaluasi milestone usia $evalAgeMonth bulan',
+                  '${child!.name} · Evaluasi usia $evalAgeMonth bulan',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -119,92 +127,34 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                   context,
                   q,
                   answers[q.id],
-                  () => _showAnswerDialog(context, q, answersNotifier),
+                  saving
+                      ? null
+                      : (value) => answersNotifier.setAnswer(q.id, value),
                 );
               },
             ),
           ),
 
-          // Bottom action
-          Container(
+          Padding(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: isComplete && !saving
+                    ? () => _submitResult(
+                        totalYes,
+                        evalAgeMonth,
+                        questions.length,
+                      )
+                    : null,
+                child: Text(
+                  saving
+                      ? 'Menyimpan…'
+                      : isComplete
+                      ? 'Simpan hasil evaluasi'
+                      : 'Lengkapi ${questions.length - answeredCount} jawaban',
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                // Summary info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        answeredCount == questions.length
-                            ? 'Total Ya: $totalYes'
-                            : 'Jawab dulu ya',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      Text(
-                        _getStatusText(totalYes, questions.length,
-                            answeredCount == questions.length),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color: _getStatusColor(
-                                  totalYes, questions.length),
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Submit button
-                if (isComplete)
-                  ElevatedButton(
-                    onPressed: () => _submitResult(totalYes, evalAgeMonth, questions.length),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      minimumSize: const Size(0, 48),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Lihat Hasil'),
-                  )
-                else
-                  OutlinedButton(
-                    onPressed: null,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Lengkapi Jawaban'),
-                  ),
-              ],
+              ),
             ),
           ),
         ],
@@ -216,181 +166,73 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
     BuildContext context,
     MilestoneQuestionEntity question,
     bool? answer,
-    VoidCallback onAnswer,
+    ValueChanged<bool>? onAnswer,
   ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final isAnswered = answer != null;
-    final answerText = answer == null
-        ? 'Pilih jawaban'
-        : answer
-            ? 'Ya'
-            : 'Tidak';
-    final answerColor = answer == null
-        ? colorScheme.outline
-        : answer
-            ? colorScheme.primary
-            : colorScheme.error;
-
+    final aspect = switch (question.aspect) {
+      MilestoneAspect.grossMotor => 'Motorik kasar',
+      MilestoneAspect.fineMotor => 'Motorik halus',
+      MilestoneAspect.speech => 'Bicara dan bahasa',
+      MilestoneAspect.social => 'Sosialisasi dan kemandirian',
+    };
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onAnswer,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${question.aspect.toString().split('.')[1]}. ${question.question}',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                  if (question.isRedFlag) ...[
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.warning_rounded,
-                      color: colorScheme.error,
-                      size: 18,
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: answerColor, width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isAnswered
-                          ? Icons.check_circle_rounded
-                          : Icons.circle_outlined,
-                      color: answerColor,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      answerText,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: answerColor,
-                        fontWeight: isAnswered ? FontWeight.w600 : null,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showAnswerDialog(
-    BuildContext context,
-    MilestoneQuestionEntity question,
-    MilestoneAnswersNotifier answersNotifier,
-  ) async {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(question.question),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (question.stimulationTip != null) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: colorScheme.primaryContainer),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_rounded,
-                      color: colorScheme.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '💡Tips stimulasi: ${question.stimulationTip}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: colorScheme.onSurface),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            // Answer options
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _handleAnswer(
-                      context,
-                      question.id,
-                      answersNotifier,
-                      false,
-                    ),
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Tidak'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.error,
-                      side: BorderSide(color: colorScheme.error),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  child: Text(
+                    aspect,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                ),
+                if (question.isRedFlag)
+                  Icon(
+                    Icons.warning_rounded,
+                    semanticLabel: 'Perlu perhatian',
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                if (question.stimulationTip != null)
+                  IconButton(
+                    tooltip: 'Tips stimulasi',
+                    icon: const Icon(Icons.lightbulb_outline),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        scrollable: true,
+                        title: const Text('Tips stimulasi'),
+                        content: Text(question.stimulationTip!),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Tutup'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _handleAnswer(
-                      context,
-                      question.id,
-                      answersNotifier,
-                      true,
-                    ),
-                    icon: const Icon(Icons.check_rounded, size: 18),
-                    label: const Text('Ya'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
               ],
+            ),
+            Text(
+              question.question,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text('Ya')),
+                ButtonSegment(value: false, label: Text('Tidak')),
+              ],
+              emptySelectionAllowed: true,
+              selected: {?answer},
+              onSelectionChanged: onAnswer == null
+                  ? null
+                  : (values) {
+                      if (values.isNotEmpty) onAnswer(values.first);
+                    },
             ),
           ],
         ),
@@ -398,27 +240,22 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
     );
   }
 
-  void _handleAnswer(
-    BuildContext context,
-    String questionId,
-    MilestoneAnswersNotifier answersNotifier,
-    bool answer,
-  ) {
-    answersNotifier.setAnswer(questionId, answer);
-    if (mounted) {
-      context.pop(); // Close dialog
-      HapticFeedback.mediumImpact(); // Subtle vibration feedback
-    }
-  }
-
   Future<void> _submitResult(
-      int totalYes, int evalAgeMonth, int totalQuestions) async {
+    int totalYes,
+    int evalAgeMonth,
+    int totalQuestions,
+  ) async {
+    final key = '${widget.childId}:$evalAgeMonth';
+    final saving = ref.read(milestoneSavingProvider(key).notifier);
+    if (saving.state) return;
+    final answers = ref.read(milestoneAnswersProvider(key).notifier);
+    saving.state = true;
     final result = MilestoneResultEntity(
-      id: 'result_${DateTime.now().millisecondsSinceEpoch}',
+      id: answers.submissionId,
       childId: widget.childId,
       ageMonthEvaluated: evalAgeMonth,
       answers: ref
-          .read(milestoneAnswersProvider)
+          .read(milestoneAnswersProvider('${widget.childId}:$evalAgeMonth'))
           .map((key, value) => MapEntry(key, value ?? false)),
       totalYes: totalYes,
       status: MilestoneResultEntity.calculateStatus(totalYes, totalQuestions),
@@ -427,25 +264,36 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
 
     try {
       await ref.read(milestoneRepositoryProvider).saveMilestoneResult(result);
-      ref.read(lastMilestoneResultProvider.notifier).state = result;
-    } catch (e) {
-      if (mounted) {
+      answers.reset();
+    } catch (_) {
+      if (mounted && widget.childId == result.childId) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Catatan tersimpan lokal (Cloud sync: $e)'),
-            behavior: SnackBarBehavior.floating,
+          const SnackBar(
+            content: Text(
+              'Hasil gagal disimpan. Jawaban masih tersedia. Tekan simpan untuk mencoba lagi.',
+            ),
           ),
         );
       }
+      return;
+    } finally {
+      saving.state = false;
     }
-
-    if (!mounted) return;
-
-    // Show result dialog
-    showDialog(
+    if (!mounted ||
+        widget.childId != result.childId ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    final destination = await showDialog<String>(
       context: context,
       builder: (context) => _ResultDialog(result: result),
     );
+    if (mounted && destination != null) {
+      context.pushNamed(
+        destination,
+        pathParameters: {'childId': result.childId},
+      );
+    }
   }
 
   /// Tampilan saat evaluasi tidak bisa dilakukan
@@ -497,31 +345,6 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
       ),
     );
   }
-
-  String _getStatusText(int totalYes, int totalQuestions, bool isComplete) {
-    if (!isComplete) return 'Jawab semua soal dulu ya';
-    final status = MilestoneResultEntity.calculateStatus(totalYes, totalQuestions);
-    switch (status) {
-      case MilestoneStatus.sesuai:
-        return '✅ Sesuai';
-      case MilestoneStatus.meragukan:
-        return '⚠️ Meragukan';
-      case MilestoneStatus.penyimpangan:
-        return '❌ Penyimpangan';
-    }
-  }
-
-  Color _getStatusColor(int totalYes, int totalQuestions) {
-    final status = MilestoneResultEntity.calculateStatus(totalYes, totalQuestions);
-    switch (status) {
-      case MilestoneStatus.sesuai:
-        return AppTheme.statusSesuai;
-      case MilestoneStatus.meragukan:
-        return AppTheme.statusMeragukan;
-      case MilestoneStatus.penyimpangan:
-        return AppTheme.statusPenyimpangan;
-    }
-  }
 }
 
 /// Dialog hasil evaluasi
@@ -547,34 +370,30 @@ class _ResultDialog extends StatelessWidget {
         break;
       case MilestoneStatus.meragukan:
         title = 'Perlu Pemantauan Lebih';
-        subtitle =
-            'Anak menunjukkan perkembangan yang masih dalam batas wajar, tapi perhatikan lebih detail. Konsultasikan ke dokter jika khawatir.';
+        subtitle = 'Anak menunjukkan perkembangan yang masih dalam batas wajar, tapi perhatikan lebih detail. Konsultasikan ke dokter jika khawatir.';
         statusColor = AppTheme.statusMeragukan;
         break;
       case MilestoneStatus.penyimpangan:
         title = 'Ada Penyimpangan';
-        subtitle =
-            'Anak menunjukkan perkembangan yang perlu diperhatikan. Sebaiknya segera konsultasikan ke dokter atau tenaga kesehatan.';
+        subtitle = 'Anak menunjukkan perkembangan yang perlu diperhatikan. Sebaiknya segera konsultasikan ke dokter atau tenaga kesehatan.';
         statusColor = AppTheme.statusPenyimpangan;
         break;
     }
 
     return AlertDialog(
+      scrollable: true,
       title: Row(
         children: [
-          Icon(
-            Icons.health_and_safety_rounded,
-            color: statusColor,
-            size: 28,
-          ),
+          Icon(Icons.health_and_safety_rounded, color: statusColor, size: 28),
           const SizedBox(width: 8),
-          Text(title),
+          Expanded(child: Text(title)),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text('Hasil tersimpan'),
           Text(
             'Skor: ${result.totalYes} dari ${result.answers.length} (Ya)',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -598,24 +417,20 @@ class _ResultDialog extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _ResultActionRow(
-            label: 'Catat hasil ini',
+            label: 'Catat pertumbuhan',
             icon: Icons.note_add_rounded,
-            onPressed: () => context.pushNamed('tracking',
-                pathParameters: {'childId': result.childId}),
+            onPressed: () => Navigator.pop(context, 'tracking'),
           ),
           const SizedBox(height: 8),
           _ResultActionRow(
-            label: 'Ulangi evaluasi',
-            icon: Icons.refresh_rounded,
-            onPressed: () => context.pop(), // Close dialog
+            label: 'Lihat riwayat KPSP',
+            icon: Icons.history_rounded,
+            onPressed: () => Navigator.pop(context, 'milestoneTimeline'),
           ),
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => context.pop(),
-          child: const Text('Tutup'),
-        ),
+        TextButton(onPressed: () => context.pop(), child: const Text('Tutup')),
       ],
     );
   }
@@ -643,9 +458,7 @@ class _ResultActionRow extends StatelessWidget {
         foregroundColor: Theme.of(context).colorScheme.primary,
         side: BorderSide(color: Theme.of(context).colorScheme.primary),
         padding: const EdgeInsets.symmetric(vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

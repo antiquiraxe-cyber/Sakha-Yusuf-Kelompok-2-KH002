@@ -40,8 +40,6 @@ final selectedChildProvider = Provider<ChildEntity?>((ref) {
   final selectedId = ref.watch(selectedChildIdProvider);
   if (selectedId == null) return children.first;
 
-  return children.firstWhere(
-    (c) => c.id == selectedId,
-    orElse: () => children.first,
-  );
+  return children.where((child) => child.id == selectedId).firstOrNull ??
+      children.first;
 });

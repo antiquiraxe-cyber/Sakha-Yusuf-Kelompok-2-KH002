@@ -39,14 +39,10 @@ class GrowthRecordsNotifier extends StateNotifier<List<GrowthRecordEntity>> {
 
   GrowthRecordsNotifier(this._repository) : super([]);
 
-  // Tambah catatan baru (update state lokal + simpan ke Firestore)
+  // Tambah catatan baru (simpan ke Firestore, lalu update state lokal)
   Future<void> addRecord(GrowthRecordEntity record) async {
+    await _repository.addRecord(record);
     state = [record, ...state];
-    try {
-      await _repository.addRecord(record);
-    } catch (_) {
-      // Data tetap aman di state lokal jika offline
-    }
   }
 
   // Ambil catatan berdasarkan childId

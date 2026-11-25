@@ -60,4 +60,21 @@ void main() {
     expect(updated.gender, Gender.female);
     expect(updated.birthDate, DateTime(2023, 5, 10));
   });
+
+  test('ageInMonthsAt memakai tanggal pengukuran, bukan hari ini', () {
+    final child = ChildEntity(
+      id: 'c4',
+      parentId: 'u1',
+      name: 'Budi',
+      birthDate: DateTime(2024, 1, 10),
+      gender: Gender.male,
+      createdAt: DateTime(2024, 1, 10),
+    );
+
+    expect(child.ageInMonthsAt(DateTime(2024, 4, 9)), 2);
+    expect(child.ageInMonthsAt(DateTime(2024, 4, 10)), 3);
+    expect(child.ageInMonthsAt(DateTime(2025, 1, 10)), 12);
+    // Tanggal sebelum lahir tidak boleh menghasilkan usia negatif.
+    expect(child.ageInMonthsAt(DateTime(2023, 12, 1)), 0);
+  });
 }

@@ -1,5 +1,5 @@
 name: langkahawal
-description: "A new Flutter project."
+description: "LangkahAwal - pemantauan tumbuh kembang anak (KPSP, antropometri, dan grafik pertumbuhan)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -31,20 +31,14 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-
   # State Management & Dependency Injection
   flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.3
 
   # Firebase
   firebase_core: ^3.5.0
   firebase_auth: ^5.1.4
   cloud_firestore: ^5.1.0
   firebase_storage: ^12.1.2
-
-  # Local Storage & Security
-  flutter_secure_storage: ^9.2.2
 
   # Navigation
   go_router: ^14.2.0
@@ -56,17 +50,15 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # Value Objects & Equatable
+  # Value Objects
   equatable: ^2.0.5
 
-  # JSON Serialization
-  json_annotation: ^4.9.0
-  http: ^1.6.0
-  url_launcher: ^6.3.3
+  # Notifikasi lokal + zona waktu
   flutter_local_notifications: ^22.3.3
+  flutter_timezone: ^5.1.1
   shared_preferences: ^2.5.6
   timezone: ^0.11.2
-  
+
   # Charts
   fl_chart: ^0.69.2
 
@@ -75,9 +67,6 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
-  build_runner: ^2.4.9
-  riverpod_generator: ^2.4.0
-  json_serializable: ^6.8.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

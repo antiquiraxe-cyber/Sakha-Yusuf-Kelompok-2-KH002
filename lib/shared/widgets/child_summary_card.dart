@@ -65,13 +65,21 @@ class ChildSummaryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  child.name,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        child.name,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.expand_more_rounded),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -105,9 +113,8 @@ class ChildSummaryCard extends StatelessWidget {
         ),
         child: Text(
           'Belum ada evaluasi',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppTheme.muted,
-              ),
+          style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(color: AppTheme.muted),
         ),
       );
     }
@@ -115,8 +122,10 @@ class ChildSummaryCard extends StatelessWidget {
     final (label, color) = switch (lastMilestoneStatus!) {
       MilestoneStatus.sesuai => ('Sesuai ✓', AppTheme.statusSesuai),
       MilestoneStatus.meragukan => ('Meragukan ⚠', AppTheme.statusMeragukan),
-      MilestoneStatus.penyimpangan =>
-        ('Perlu Perhatian ✗', AppTheme.statusPenyimpangan),
+      MilestoneStatus.penyimpangan => (
+        'Perlu Perhatian ✗',
+        AppTheme.statusPenyimpangan,
+      ),
     };
 
     return Container(
@@ -127,10 +136,8 @@ class ChildSummaryCard extends StatelessWidget {
       ),
       child: Text(
         'Milestone: $label',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+        style: Theme.of(context).textTheme.labelMedium
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

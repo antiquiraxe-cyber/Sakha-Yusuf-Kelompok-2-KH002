@@ -13,6 +13,10 @@
 # Flutter Secure Storage
 -keep class com.it_nomads.fluttersecurestorage.** { *; }
 
+# Play Core (deferred components) tidak dipakai; R8 tetap butuh referensinya.
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
 # Model Classes (keep for JSON serialization)
 -keep class com.langkahawal.app.data.model.** { *; }
 -keepclassmembers class com.langkahawal.app.data.model.** { *; }

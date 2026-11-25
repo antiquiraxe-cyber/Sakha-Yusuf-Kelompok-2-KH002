@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/child_entity.dart';
@@ -24,7 +26,7 @@ import '../../../tracking/presentation/widgets/growth_evaluation_sheet.dart';
 /// - Loading State: animasi shimmer skeleton saat mengambil data realtime dari Firestore
 /// - Error/Offline State: pesan ramah pengguna jika terjadi kendala jaringan + tombol "Coba Lagi"
 /// - Empty State: jika belum ada anak terdaftar → CTA "Tambah Anak"
-/// - Dashboard Data: jika data ada → summary card + stats + quick actions + pengingat
+/// - Dashboard Data: jika data ada → profil, statistik, evaluasi, dan pengingat
 ///
 /// Desain mengikuti prinsip mobile-design skill:
 /// - Thumb Zone: tombol aksi utama di area bawah layar
@@ -40,11 +42,8 @@ class ChildListScreen extends ConsumerWidget {
     final selectedChild = ref.watch(selectedChildProvider);
 
     return childrenAsync.when(
-      loading: () => const Scaffold(
-        body: SafeArea(
-          child: DashboardSkeletonLoader(),
-        ),
-      ),
+      loading: () =>
+          const Scaffold(body: SafeArea(child: DashboardSkeletonLoader())),
       error: (error, stack) => Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -60,8 +59,7 @@ class ChildListScreen extends ConsumerWidget {
         body: SafeArea(
           child: ErrorStateWidget(
             title: 'Gagal Memuat Data',
-            message:
-                'Terjadi kendala saat memuat data anak dari server. Pastikan koneksi internet Anda aktif.',
+            message: 'Terjadi kendala saat memuat data anak dari server. Pastikan koneksi internet Anda aktif.',
             actionLabel: 'Coba Lagi',
             onRetry: () => ref.invalidate(childrenStreamProvider),
           ),
@@ -86,8 +84,7 @@ class ChildListScreen extends ConsumerWidget {
               child: EmptyStateWidget(
                 icon: Icons.child_care,
                 title: 'Mulai Pantau Si Kecil',
-                description:
-                    'Tambahkan data anak Anda untuk mulai memantau tumbuh kembangnya secara teratur.',
+                description: 'Tambahkan data anak Anda untuk mulai memantau tumbuh kembangnya secara teratur.',
                 actionLabel: 'Tambah Anak',
                 onAction: () => context.pushNamed('addChild'),
               ),
@@ -96,6 +93,29 @@ class ChildListScreen extends ConsumerWidget {
         }
 
         // Dashboard — ada data anak
+        final age = selectedChild!.ageInMonths;
+        final period = AppConstants.kpspAgeMonths
+            .where((a) => a <= age)
+            .lastOrNull;
+        final history = ref
+            .watch(milestoneHistoryStreamProvider(selectedChild.id))
+            .asData
+            ?.value;
+        final due =
+            period != null &&
+            age <= AppConstants.kpspAgeMonths.last &&
+            history != null &&
+            !history.any((result) => result.ageMonthEvaluated == period);
+        final reminderAge = due
+            ? period
+            : AppConstants.kpspAgeMonths.where((a) => a > age).firstOrNull;
+        final reminder = _buildReminder(
+          context,
+          selectedChild,
+          ref,
+          reminderAge,
+          due,
+        );
         return Scaffold(
           body: SafeArea(
             child: LayoutBuilder(
@@ -112,11 +132,14 @@ class ChildListScreen extends ConsumerWidget {
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                    ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
                         maxWidth: maxWidth,
-                        minHeight: constraints.maxHeight -
+                        minHeight:
+                            constraints.maxHeight -
                             MediaQuery.of(context).padding.top,
                       ),
                       child: Column(
@@ -136,15 +159,23 @@ class ChildListScreen extends ConsumerWidget {
                           AnimatedEntrance(
                             delay: const Duration(milliseconds: 150),
                             child: _buildChildSummaryCard(
-                                context, selectedChild, ref),
+                              context,
+                              selectedChild,
+                              ref,
+                            ),
                           ),
 
                           const SizedBox(height: 20),
 
+                          if (due) ...[reminder, const SizedBox(height: 16)],
                           // === GROWTH STATS ROW ===
                           AnimatedEntrance(
                             delay: const Duration(milliseconds: 250),
-                            child: _buildGrowthStats(context, selectedChild, ref),
+                            child: _buildGrowthStats(
+                              context,
+                              selectedChild,
+                              ref,
+                            ),
                           ),
 
                           const SizedBox(height: 16),
@@ -153,19 +184,16 @@ class ChildListScreen extends ConsumerWidget {
                           AnimatedEntrance(
                             delay: const Duration(milliseconds: 300),
                             child: _buildGrowthEvaluationCard(
-                                context, selectedChild, ref),
+                              context,
+                              selectedChild,
+                              ref,
+                            ),
                           ),
 
                           const SizedBox(height: 20),
 
-                          // === REMINDER CARD ===
-                          AnimatedEntrance(
-                            delay: const Duration(milliseconds: 450),
-                            child: _buildReminder(context, selectedChild, ref),
-                          ),
-
-                          const SizedBox(
-                              height: 24), // Bottom padding for FAB space
+                          if (!due) reminder,
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -174,16 +202,6 @@ class ChildListScreen extends ConsumerWidget {
               },
             ),
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => context.pushNamed('addChild'),
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Anak'),
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
-          ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerFloat,
         );
       },
     );
@@ -196,11 +214,10 @@ class ChildListScreen extends ConsumerWidget {
     final greeting = hour < 11
         ? 'Selamat Pagi'
         : hour < 15
-            ? 'Selamat Siang'
-            : 'Selamat Sore';
+        ? 'Selamat Siang'
+        : 'Selamat Sore';
 
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName?.trim();
+    final displayName = ref.watch(displayNameProvider);
     final greetingTitle = (displayName != null && displayName.isNotEmpty)
         ? '$greeting, $displayName'
         : greeting;
@@ -245,11 +262,6 @@ class ChildListScreen extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 20),
-        Text(
-          'Tumbuh Kembang',
-          style: theme.textTheme.headlineMedium,
-        ),
       ],
     );
   }
@@ -281,59 +293,61 @@ class ChildListScreen extends ConsumerWidget {
     }
   }
 
- Widget _buildChildSummaryCard(
-      BuildContext context, ChildEntity? child, WidgetRef ref) {
+  Widget _buildChildSummaryCard(
+    BuildContext context,
+    ChildEntity? child,
+    WidgetRef ref,
+  ) {
     if (child == null) return const SizedBox.shrink();
 
     final latestMilestone = ref.watch(latestMilestoneResultProvider(child.id));
+    final children = ref.watch(childListProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Profil Anak',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.edit_outlined,
-                      color: Theme.of(context).colorScheme.primary),
-                  tooltip: 'Edit Profil Anak',
-                  onPressed: () {
-                    context.pushNamed(
-                      'editChild',
-                      pathParameters: {'childId': child.id},
-                      extra: child,
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.delete_outline,
-                      color: Theme.of(context).colorScheme.error),
-                  tooltip: 'Hapus Profil Anak',
-                  onPressed: () => _confirmDeleteChild(context, ref, child),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ChildSummaryCard(
-          child: child,
-          lastMilestoneStatus: latestMilestone?.status,
-        ),
+    return PopupMenuButton<String>(
+      tooltip: 'Pilih atau kelola profil anak',
+      onSelected: (selection) {
+        if (selection.startsWith('child:')) {
+          ref.read(selectedChildIdProvider.notifier).state = selection
+              .substring('child:'.length);
+          return;
+        }
+        switch (selection) {
+          case 'add':
+            context.pushNamed('addChild');
+          case 'edit':
+            context.pushNamed(
+              'editChild',
+              pathParameters: {'childId': child.id},
+              extra: child,
+            );
+          case 'delete':
+            _confirmDeleteChild(context, ref, child);
+        }
+      },
+      itemBuilder: (_) => [
+        for (final profile in children)
+          CheckedPopupMenuItem<String>(
+            checked: profile.id == child.id,
+            value: 'child:${profile.id}',
+            child: Text(profile.name),
+          ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'add', child: Text('Tambah Anak')),
+        const PopupMenuItem(value: 'edit', child: Text('Edit profil anak')),
+        const PopupMenuItem(value: 'delete', child: Text('Hapus profil anak')),
       ],
+      child: ChildSummaryCard(
+        child: child,
+        lastMilestoneStatus: latestMilestone?.status,
+      ),
     );
   }
 
-Future<void> _confirmDeleteChild(
-      BuildContext context, WidgetRef ref, ChildEntity child) async {
+  Future<void> _confirmDeleteChild(
+    BuildContext context,
+    WidgetRef ref,
+    ChildEntity child,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -369,16 +383,19 @@ Future<void> _confirmDeleteChild(
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal menghapus data: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Gagal menghapus data: $e')));
         }
       }
     }
   }
-  
+
   Widget _buildGrowthStats(
-      BuildContext context, ChildEntity? child, WidgetRef ref) {
+    BuildContext context,
+    ChildEntity? child,
+    WidgetRef ref,
+  ) {
     if (child == null) return const SizedBox.shrink();
 
     final latestRecord = ref.watch(latestGrowthRecordProvider(child.id));
@@ -426,7 +443,10 @@ Future<void> _confirmDeleteChild(
   }
 
   Widget _buildGrowthEvaluationCard(
-      BuildContext context, ChildEntity? child, WidgetRef ref) {
+    BuildContext context,
+    ChildEntity? child,
+    WidgetRef ref,
+  ) {
     if (child == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
@@ -487,7 +507,7 @@ Future<void> _confirmDeleteChild(
     }
 
     final eval = GrowthEvaluationService.evaluate(
-      ageInMonths: child.ageInMonths,
+      ageInMonths: child.ageInMonthsAt(latestRecord.recordDate),
       gender: child.gender,
       weightKg: latestRecord.weightKg,
       heightCm: latestRecord.heightCm,
@@ -520,9 +540,7 @@ Future<void> _confirmDeleteChild(
       color: statusBg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: statusColor.withValues(alpha: 0.35),
-        ),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.35)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -555,8 +573,10 @@ Future<void> _confirmDeleteChild(
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
@@ -586,17 +606,22 @@ Future<void> _confirmDeleteChild(
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    'Lihat Saran Gizi & Solusi Nutrisi',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
+                  Flexible(
+                    child: Text(
+                      'Lihat Saran Gizi & Solusi Nutrisi',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      size: 11, color: statusColor),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 11,
+                    color: statusColor,
+                  ),
                 ],
               ),
             ],
@@ -608,21 +633,15 @@ Future<void> _confirmDeleteChild(
 
   /// Pengingat milestone berikutnya & toggle notifikasi lokal
   Widget _buildReminder(
-      BuildContext context, ChildEntity? child, WidgetRef ref) {
-    if (child == null) return const SizedBox.shrink();
-
+    BuildContext context,
+    ChildEntity child,
+    WidgetRef ref,
+    int? nextMilestoneAge,
+    bool isUrgent,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isReminderEnabled = ref.watch(reminderProvider);
-
-    // Hitung milestone berikutnya berdasarkan usia
-    final ageMonths = child.ageInMonths;
-    final nextMilestoneAge = _getNextMilestoneAge(ageMonths);
-
-    // Highlight kalau milestone dekat (age >= 80% next milestone)
-    final isUrgent = nextMilestoneAge != null &&
-        ageMonths >= (nextMilestoneAge * 0.8);
-
     final containerColor = isUrgent
         ? colorScheme.errorContainer.withValues(alpha: 0.3)
         : colorScheme.tertiaryContainer.withValues(alpha: 0.3);
@@ -645,15 +664,18 @@ Future<void> _confirmDeleteChild(
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.notifications_active_outlined,
-                  color: iconColor, size: 24),
+              Icon(
+                Icons.notifications_active_outlined,
+                color: iconColor,
+                size: 24,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isUrgent ? 'Evaluasi Mendekat!' : 'Pengingat',
+                      isUrgent ? 'Evaluasi KPSP sudah waktunya' : 'Pengingat',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: iconColor,
                         fontWeight: FontWeight.w600,
@@ -663,7 +685,7 @@ Future<void> _confirmDeleteChild(
                     Text(
                       nextMilestoneAge != null
                           ? 'Evaluasi milestone usia $nextMilestoneAge bulan untuk ${child.name}.'
-                          : '${child.name} sudah melewati semua rentang usia KPSP. Tetap pantau perkembangannya!',
+                          : 'Tidak ada jadwal evaluasi berikutnya untuk ${child.name}.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurface,
                       ),
@@ -686,44 +708,37 @@ Future<void> _confirmDeleteChild(
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 4),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text(
-              'Ingatkan Evaluasi KPSP',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(
+                'Ingatkan Evaluasi KPSP',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            subtitle: Text(
-              isReminderEnabled
-                  ? 'Pengingat otomatis aktif'
-                  : 'Aktifkan notifikasi pengingat di HP',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              subtitle: Text(
+                isReminderEnabled
+                    ? 'Pengingat otomatis aktif'
+                    : 'Aktifkan notifikasi pengingat di HP',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
+              value: isReminderEnabled,
+              activeThumbColor: colorScheme.primary,
+              onChanged: (val) {
+                ref
+                    .read(reminderProvider.notifier)
+                    .toggleReminder(enabled: val, child: child);
+              },
             ),
-            value: isReminderEnabled,
-            activeThumbColor: colorScheme.primary,
-            onChanged: (val) {
-              ref.read(reminderProvider.notifier).toggleReminder(
-                    enabled: val,
-                    child: child,
-                  );
-            },
           ),
         ],
       ),
     );
-  }
-
-  /// Cari usia milestone KPSP berikutnya berdasarkan usia anak saat ini.
-  int? _getNextMilestoneAge(int currentAgeMonths) {
-    const kpspAges = [3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60];
-    for (final age in kpspAges) {
-      if (age >= currentAgeMonths) return age;
-    }
-    return null; // Anak sudah > 60 bulan
   }
 }
 
@@ -864,4 +879,3 @@ class _HealthMarkPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

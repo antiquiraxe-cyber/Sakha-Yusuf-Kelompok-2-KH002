@@ -1,6 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
-import '../screens/growth_chart_screen.dart';
+import '../../domain/entities/growth_metric.dart';
 
 /// Data kurva pertumbuhan standar WHO untuk anak 0-60 bulan.
 /// Sumber: WHO Child Growth Standards (https://www.who.int/tools/child-growth-standards)
