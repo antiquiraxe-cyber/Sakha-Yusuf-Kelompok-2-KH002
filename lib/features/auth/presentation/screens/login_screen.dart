@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../shared/widgets/health_illustration.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -97,12 +96,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    HealthIllustration(
-                      assetPath:
-                          'assets/illustrations/pediatric-family-preview.jpg',
-                      height: 170,
+                    Icon(
+                      Icons.child_care_rounded,
+                      size: 64,
+                      color: theme.colorScheme.primary,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     Text(
                       'LangkahAwal',
                       textAlign: TextAlign.center,

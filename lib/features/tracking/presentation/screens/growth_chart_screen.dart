@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/widgets/health_illustration.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
 import '../../../child_profile/presentation/providers/child_provider.dart';
 import '../../domain/entities/growth_record_entity.dart';
@@ -99,12 +98,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          HealthIllustration(
-            assetPath: 'assets/illustrations/pediatric-growth-preview.jpg',
-            height: 160,
-            fit: BoxFit.contain,
-            fallbackIcon: Icons.show_chart_rounded,
-          ),
+          Icon(Icons.show_chart, size: 64, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: 16),
           Text(
             'Belum ada data pertumbuhan',

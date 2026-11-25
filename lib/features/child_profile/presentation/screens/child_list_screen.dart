@@ -13,7 +13,6 @@ import '../../../../shared/widgets/error_state_widget.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/child_summary_card.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
-import '../../../../shared/widgets/health_illustration.dart';
 import '../../../milestone/presentation/providers/milestone_provider.dart';
 import '../../../tracking/domain/services/growth_evaluation_service.dart';
 import '../../../tracking/presentation/providers/growth_record_provider.dart';
@@ -138,15 +137,6 @@ class ChildListScreen extends ConsumerWidget {
                             delay: const Duration(milliseconds: 150),
                             child: _buildChildSummaryCard(
                                 context, selectedChild, ref),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Ilustrasi pemeriksaan anak pada panel kesehatan utama.
-                          HealthIllustration(
-                            assetPath:
-                                'assets/illustrations/pediatric-checkup-preview.jpg',
-                            height: 150,
                           ),
 
                           const SizedBox(height: 20),

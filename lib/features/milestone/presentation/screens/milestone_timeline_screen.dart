@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/widgets/health_illustration.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
 import '../../../child_profile/presentation/providers/child_provider.dart';
 import '../../domain/entities/milestone_entity.dart';
@@ -73,12 +72,6 @@ class MilestoneTimelineScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          HealthIllustration(
-            assetPath: 'assets/illustrations/child-development-preview.jpg',
-            height: 170,
-          ),
-          const SizedBox(height: 20),
-
           // Child info card
           Card(
             child: Padding(
