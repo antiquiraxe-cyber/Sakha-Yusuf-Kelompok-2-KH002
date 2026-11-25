@@ -131,7 +131,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
         title: const Text('Catat Pertumbuhan'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.goNamed('home'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.goNamed('home'),
         ),
       ),
       body: SafeArea(
@@ -248,12 +249,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   FilledButton.icon(
                     onPressed: isSaving ? null : _saveRecord,
                     icon: isSaving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
                         : const Icon(Icons.save),
@@ -363,8 +364,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
 
                 switch (eval.alertLevel) {
                   case GrowthAlertLevel.danger:
-                    statusBadgeBg = Colors.red.shade50;
-                    statusBadgeColor = Colors.red.shade700;
+                    statusBadgeBg = colorScheme.errorContainer;
+                    statusBadgeColor = colorScheme.error;
                     statusBadgeIcon = Icons.error_outline_rounded;
                     statusBadgeLabel = eval.stuntingStatus == StuntingStatus.severelyStunted
                         ? 'Sangat Pendek'
@@ -375,8 +376,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                 : 'Peringatan'));
                     break;
                   case GrowthAlertLevel.warning:
-                    statusBadgeBg = Colors.orange.shade50;
-                    statusBadgeColor = Colors.orange.shade800;
+                    statusBadgeBg = colorScheme.tertiaryContainer;
+                    statusBadgeColor = colorScheme.tertiary;
                     statusBadgeIcon = Icons.warning_amber_rounded;
                     statusBadgeLabel = eval.stuntingStatus == StuntingStatus.stunted
                         ? 'Pendek'
@@ -387,8 +388,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                 : 'Waspada'));
                     break;
                   case GrowthAlertLevel.normal:
-                    statusBadgeBg = Colors.green.shade50;
-                    statusBadgeColor = Colors.green.shade700;
+                    statusBadgeBg = colorScheme.primaryContainer;
+                    statusBadgeColor = colorScheme.primary;
                     statusBadgeIcon = Icons.check_circle_outline_rounded;
                     statusBadgeLabel = 'Normal';
                     break;
@@ -422,8 +423,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.access_time_rounded,
-                                      size: 16, color: Colors.grey),
+                                  Icon(Icons.access_time_rounded,
+                                      size: 16, color: colorScheme.outline),
                                   const SizedBox(width: 6),
                                   Text(
                                     '${DateFormat('dd MMMM yyyy, HH:mm', 'id_ID').format(record.recordDate)} WIB',
@@ -434,8 +435,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                 ],
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 20, color: Colors.redAccent),
+                                icon: Icon(Icons.delete_outline,
+                                    size: 20, color: colorScheme.error),
                                 tooltip: 'Hapus Catatan',
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
@@ -459,7 +460,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                 context,
                                 icon: Icons.height,
                                 label: 'TB: ${record.heightCm.toStringAsFixed(1)} cm',
-                                color: const Color(0xFFFFA726),
+                                color: AppTheme.metricHeight,
                               ),
                               if (record.headCircumferenceCm != null)
                                 _buildHistoryBadge(
@@ -467,7 +468,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                   icon: Icons.face,
                                   label:
                                       'LK: ${record.headCircumferenceCm!.toStringAsFixed(1)} cm',
-                                  color: const Color(0xFF43A047),
+                                  color: AppTheme.metricHead,
                                 ),
                               Container(
                                 padding: const EdgeInsets.symmetric(

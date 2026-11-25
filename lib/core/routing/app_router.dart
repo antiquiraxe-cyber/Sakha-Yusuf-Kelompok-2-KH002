@@ -9,7 +9,9 @@ import '../../features/child_profile/presentation/providers/child_provider.dart'
 import '../../features/child_profile/presentation/screens/add_child_screen.dart';
 import '../../features/child_profile/presentation/screens/child_list_screen.dart';
 import '../../features/milestone/presentation/screens/milestone_screen.dart';
+import '../../features/milestone/presentation/screens/milestone_timeline_screen.dart';
 import '../../features/tracking/presentation/screens/tracking_screen.dart';
+import '../../features/tracking/presentation/screens/growth_chart_screen.dart';
 import '../../features/child_profile/presentation/screens/edit_child_screen.dart';
 
 class AppRouter {
@@ -38,12 +40,14 @@ class AppRouter {
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(state, const LoginScreen()),
       ),
       GoRoute(
         path: '/register',
         name: 'register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(state, const RegisterScreen()),
       ),
       // Shell Route untuk Bottom Navigation
       ShellRoute(
@@ -68,25 +72,74 @@ class AppRouter {
               childId: state.pathParameters['childId']!,
             ),
           ),
+          GoRoute(
+            path: '/growth-chart/:childId',
+            name: 'growthChart',
+            builder: (context, state) => GrowthChartScreen(
+              childId: state.pathParameters['childId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/milestone-timeline/:childId',
+            name: 'milestoneTimeline',
+            builder: (context, state) => MilestoneTimelineScreen(
+              childId: state.pathParameters['childId']!,
+            ),
+          ),
         ],
       ),
       GoRoute(
         path: '/add-child',
         name: 'addChild',
-        builder: (context, state) => const AddChildScreen(),
+        pageBuilder: (context, state) =>
+            _fadeSlidePage(state, const AddChildScreen()),
       ),
       GoRoute(
         name: 'editChild',
         path: '/edit-child/:childId',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final childData =
               state.extra is ChildEntity ? state.extra as ChildEntity : null;
           final childId = state.pathParameters['childId'];
-          return EditChildScreen(childData: childData, childId: childId);
+          return _fadeSlidePage(
+            state,
+            EditChildScreen(childData: childData, childId: childId),
+          );
         },
       ),
     ],
   );
+
+  /// Transisi masuk untuk halaman yang di-push (bukan tab bottom nav).
+  /// Tab sengaja tanpa animasi supaya perpindahan terasa instan.
+  static CustomTransitionPage<void> _fadeSlidePage(
+    GoRouterState state,
+    Widget child,
+  ) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 260),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.04),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
 }
 
 class MainShell extends ConsumerWidget {
@@ -98,32 +151,47 @@ class MainShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(index, context, ref),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Beranda',
+      // Bottom nav mengambang berbentuk kapsul gelap, seperti referensi desain.
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: NavigationBar(
+            selectedIndex: _calculateSelectedIndex(context),
+            onDestinationSelected: (index) =>
+                _onItemTapped(index, context, ref),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Beranda',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.child_care_outlined),
+                selectedIcon: Icon(Icons.child_care),
+                label: 'Milestone',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.monitor_weight_outlined),
+                selectedIcon: Icon(Icons.monitor_weight),
+                label: 'Catatan',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.show_chart_rounded),
+                selectedIcon: Icon(Icons.show_chart),
+                label: 'Grafik',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.child_care_outlined),
-            selectedIcon: Icon(Icons.child_care),
-            label: 'Milestone',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.monitor_weight_outlined),
-            selectedIcon: Icon(Icons.monitor_weight),
-            label: 'Catatan',
-          ),
-        ],
+        ),
       ),
     );
   }
 
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
+    if (location.startsWith('/growth-chart')) return 3;
     if (location.startsWith('/tracking')) return 2;
     if (location.startsWith('/milestone')) return 1;
     return 0;
@@ -151,6 +219,9 @@ class MainShell extends ConsumerWidget {
       context.goNamed('milestone', pathParameters: {'childId': selectedChild.id});
     } else if (index == 2) {
       context.goNamed('tracking', pathParameters: {'childId': selectedChild.id});
+    } else if (index == 3) {
+      context.goNamed('growthChart',
+          pathParameters: {'childId': selectedChild.id});
     }
   }
 }

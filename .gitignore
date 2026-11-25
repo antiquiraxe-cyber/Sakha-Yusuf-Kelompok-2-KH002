@@ -56,3 +56,7 @@ docs/PEMBAGIAN-TUGAS.md
 docs/REPORT-PROGRES-SAKHA.md
 docs/TUTORIAL-KONEKSI-FIREBASE.md
 
+# Preview Shutterstock berwatermark — jangan didistribusikan lewat repo publik.
+# Ganti dengan file berlisensi sebelum build distribusi.
+/assets/illustrations/*.jpg
+

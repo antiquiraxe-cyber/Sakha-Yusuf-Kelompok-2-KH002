@@ -280,38 +280,6 @@ class DashboardSkeletonLoader extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Quick Actions Skeleton (2 Action Buttons)
-                Row(
-                  children: const [
-                    Expanded(
-                      child: SkeletonCard(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            SkeletonCircle(size: 32),
-                            SizedBox(height: 10),
-                            SkeletonLine(width: 80, height: 14),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: SkeletonCard(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            SkeletonCircle(size: 32),
-                            SizedBox(height: 10),
-                            SkeletonLine(width: 80, height: 14),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
                 // Reminder Card Skeleton
                 SkeletonCard(
                   child: Row(

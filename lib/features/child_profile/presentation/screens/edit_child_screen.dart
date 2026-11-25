@@ -158,8 +158,9 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
                         radius: 18,
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         child: IconButton(
-                          icon: const Icon(Icons.camera_alt,
-                              size: 18, color: Colors.white),
+                          icon: Icon(Icons.camera_alt,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.onPrimary),
                           padding: EdgeInsets.zero,
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -227,12 +228,12 @@ class _EditChildScreenState extends ConsumerState<EditChildScreen> {
                   minimumSize: const Size.fromHeight(50),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       )
                     : const Text('Simpan Perubahan'),

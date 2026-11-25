@@ -101,20 +101,22 @@ class _AddChildScreenState extends ConsumerState<AddChildScreen> {
   }
 
   void _showErrorSnackBar(String message) {
+    final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red.shade700,
+        content: Text(message, style: TextStyle(color: colorScheme.onError)),
+        backgroundColor: colorScheme.error,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   void _showSuccessSnackBar(String message) {
+    final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green.shade700,
+        content: Text(message, style: TextStyle(color: colorScheme.onPrimary)),
+        backgroundColor: colorScheme.primary,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -357,12 +359,12 @@ class _AddChildScreenState extends ConsumerState<AddChildScreen> {
                 child: FilledButton(
                   onPressed: _isSubmitting ? null : _submitForm,
                   child: _isSubmitting
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: colorScheme.onPrimary,
                           ),
                         )
                       : const Text('Simpan Data Anak'),

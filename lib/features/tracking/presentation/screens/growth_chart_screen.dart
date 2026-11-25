@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/health_illustration.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
 import '../../../child_profile/presentation/providers/child_provider.dart';
 import '../../domain/entities/growth_record_entity.dart';
@@ -25,19 +26,11 @@ class GrowthChartScreen extends ConsumerStatefulWidget {
 class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  GrowthChartTab _currentTab = GrowthChartTab.weight;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {
-          _currentTab = GrowthChartTab.values[_tabController.index];
-        });
-      }
-    });
   }
 
   @override
@@ -101,11 +94,17 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.show_chart, size: 64, color: Colors.grey.shade400),
+          HealthIllustration(
+            assetPath: 'assets/illustrations/pediatric-growth-preview.jpg',
+            height: 160,
+            fit: BoxFit.contain,
+            fallbackIcon: Icons.show_chart_rounded,
+          ),
           const SizedBox(height: 16),
           Text(
             'Belum ada data pertumbuhan',
@@ -115,7 +114,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
           Text(
             'Catat pertumbuhan anak untuk melihat grafik',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey,
+                  color: colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: 24),
@@ -157,12 +156,12 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
       case GrowthChartTab.height:
         title = 'Tinggi Badan';
         unit = 'cm';
-        lineColor = const Color(0xFFFFA726);
+        lineColor = AppTheme.metricHeight;
         break;
       case GrowthChartTab.headCircumference:
         title = 'Lingkar Kepala';
         unit = 'cm';
-        lineColor = const Color(0xFF43A047);
+        lineColor = AppTheme.metricHead;
         break;
     }
 
@@ -266,7 +265,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                           context,
                           'Pertama',
                           '${dataPoints.first.y.toStringAsFixed(1)} $unit',
-                          Colors.grey,
+                          colorScheme.onSurfaceVariant,
                         ),
                         _buildStatItem(
                           context,
@@ -304,11 +303,11 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                   horizontalInterval: (maxY - minY) / 5,
                   verticalInterval: 6,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.shade200,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.6),
                     strokeWidth: 1,
                   ),
                   getDrawingVerticalLine: (value) => FlLine(
-                    color: Colors.grey.shade200,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.6),
                     strokeWidth: 1,
                   ),
                 ),
@@ -345,15 +344,18 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                 ),
                 borderData: FlBorderData(
                   show: true,
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: colorScheme.outlineVariant),
                 ),
                 lineBarsData: [
                   // WHO P97 (upper bound)
-                  _buildWhoLine(whoStandards.p97, Colors.red.shade200, maxX),
+                  _buildWhoLine(whoStandards.p97,
+                      colorScheme.error.withValues(alpha: 0.45), maxX),
                   // WHO P50 (median)
-                  _buildWhoLine(whoStandards.p50, Colors.green.shade300, maxX),
+                  _buildWhoLine(whoStandards.p50,
+                      colorScheme.primary.withValues(alpha: 0.5), maxX),
                   // WHO P3 (lower bound)
-                  _buildWhoLine(whoStandards.p3, Colors.red.shade200, maxX),
+                  _buildWhoLine(whoStandards.p3,
+                      colorScheme.error.withValues(alpha: 0.45), maxX),
                   // Child's data
                   LineChartBarData(
                     spots: dataPoints,
@@ -368,7 +370,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
                         radius: 5,
                         color: lineColor,
                         strokeWidth: 2,
-                        strokeColor: Colors.white,
+                        strokeColor: colorScheme.surface,
                       ),
                     ),
                     belowBarData: BarAreaData(
@@ -455,7 +457,7 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: 4),
@@ -471,13 +473,16 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
   }
 
   Widget _buildLegend(BuildContext context, Color lineColor) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Wrap(
       spacing: 16,
       runSpacing: 8,
       children: [
         _buildLegendItem(context, 'Data Anak', lineColor),
-        _buildLegendItem(context, 'Median WHO', Colors.green.shade300),
-        _buildLegendItem(context, 'Batas Normal (P3-P97)', Colors.red.shade200),
+        _buildLegendItem(context, 'Median WHO',
+            colorScheme.primary.withValues(alpha: 0.5)),
+        _buildLegendItem(context, 'Batas Normal (P3-P97)',
+            colorScheme.error.withValues(alpha: 0.45)),
       ],
     );
   }

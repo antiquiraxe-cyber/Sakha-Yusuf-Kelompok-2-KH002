@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/health_illustration.dart';
 import '../../../child_profile/domain/entities/child_entity.dart';
 import '../../../child_profile/presentation/providers/child_provider.dart';
 import '../../domain/entities/milestone_entity.dart';
@@ -72,6 +73,12 @@ class MilestoneTimelineScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          HealthIllustration(
+            assetPath: 'assets/illustrations/child-development-preview.jpg',
+            height: 170,
+          ),
+          const SizedBox(height: 20),
+
           // Child info card
           Card(
             child: Padding(
@@ -160,6 +167,8 @@ class MilestoneTimelineScreen extends ConsumerWidget {
     List<int> kpspAges,
     int currentAge,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Count completed evaluations up to current age
     final applicableAges = kpspAges.where((age) => age <= currentAge).length;
     final completedCount = history.length;
@@ -178,7 +187,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
               CircularProgressIndicator(
                 value: percentage / 100,
                 strokeWidth: 5,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   percentage >= 80
                       ? AppTheme.statusSesuai
@@ -376,11 +385,11 @@ class MilestoneTimelineScreen extends ConsumerWidget {
           break;
       }
     } else if (isFuture) {
-      statusColor = Colors.grey.shade300;
+      statusColor = colorScheme.outline;
       statusIcon = Icons.lock_outline;
       statusText = 'Belum saatnya';
     } else if (isPast && !isCompleted) {
-      statusColor = Colors.orange.shade300;
+      statusColor = colorScheme.tertiary;
       statusIcon = Icons.schedule;
       statusText = 'Terlewat';
     } else {
@@ -404,7 +413,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: isCompleted || isCurrent
                         ? statusColor
-                        : Colors.grey.shade200,
+                        : colorScheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
                     border: isCurrent && !isCompleted
                         ? Border.all(color: statusColor, width: 3)
@@ -414,14 +423,14 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                     statusIcon,
                     size: 14,
                     color: isCompleted || (isCurrent && !isFuture)
-                        ? Colors.white
-                        : Colors.grey,
+                        ? colorScheme.surface
+                        : colorScheme.outline,
                   ),
                 ),
                 Expanded(
                   child: Container(
                     width: 2,
-                    color: Colors.grey.shade300,
+                    color: colorScheme.outlineVariant,
                   ),
                 ),
               ],
@@ -464,7 +473,7 @@ class MilestoneTimelineScreen extends ConsumerWidget {
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: isFuture
-                                    ? Colors.grey
+                                    ? colorScheme.outline
                                     : colorScheme.onSurface,
                               ),
                             ),

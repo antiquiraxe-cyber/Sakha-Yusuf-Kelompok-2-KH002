@@ -23,6 +23,8 @@ class MilestoneScreen extends ConsumerStatefulWidget {
 class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Ambil data anak berdasarkan childId dari provider
     final children = ref.watch(childListProvider);
     final child = children.cast<ChildEntity?>().firstWhere(
@@ -58,10 +60,18 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
           onPressed: () => context.pop(),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.timeline_rounded),
+            tooltip: 'Timeline Milestone',
+            onPressed: () => context.pushNamed(
+              'milestoneTimeline',
+              pathParameters: {'childId': widget.childId},
+            ),
+          ),
           Text(
             '$answeredCount/${questions.length}',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
+                  color: colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                 ),
           ),
@@ -84,9 +94,9 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: progress / 100,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF4CAF82),
+                    backgroundColor: colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      colorScheme.primary,
                     ),
                     minHeight: 8,
                   ),
@@ -96,7 +106,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
           ),
 
           // Divider
-          Divider(height: 1, color: Colors.grey.shade200),
+          Divider(height: 1, color: colorScheme.outlineVariant),
 
           // Questions list
           Expanded(
@@ -166,8 +176,8 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                   ElevatedButton(
                     onPressed: () => _submitResult(totalYes, evalAgeMonth, questions.length),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF82),
-                      foregroundColor: Colors.white,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
                       minimumSize: const Size(0, 48),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -183,7 +193,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                   OutlinedButton(
                     onPressed: null,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey,
+                      foregroundColor: colorScheme.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
@@ -372,7 +382,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                     label: const Text('Ya'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -448,7 +458,8 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
         title: const Text('Evaluasi KPSP'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.goNamed('home'),
         ),
       ),
       body: Center(
@@ -479,12 +490,6 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen> {
                   color: theme.colorScheme.outline,
                 ),
                 textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: () => context.goNamed('home'),
-                icon: const Icon(Icons.home_rounded),
-                label: const Text('Kembali ke Beranda'),
               ),
             ],
           ),

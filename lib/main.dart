@@ -28,13 +28,7 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  // Security: sembunyikan konten app dari recent apps / screenshot
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
+  // Warna ikon status bar diurus AppBar sesuai warna latar app bar.
 
   runApp(
     const ProviderScope(

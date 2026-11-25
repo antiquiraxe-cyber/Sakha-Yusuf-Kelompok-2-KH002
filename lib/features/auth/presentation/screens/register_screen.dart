@@ -192,12 +192,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         minimumSize: const Size.fromHeight(48),
                       ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: theme.colorScheme.onPrimary,
                               ),
                             )
                           : const Text('Daftar'),

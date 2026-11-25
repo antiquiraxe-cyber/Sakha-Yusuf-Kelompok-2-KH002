@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/services/growth_evaluation_service.dart';
 
 /// Menampilkan Bottom Sheet edukatif hasil pemantauan pertumbuhan dan panduan nutrisi.
@@ -19,18 +20,18 @@ Future<void> showGrowthEvaluationSheet(
 
   switch (eval.alertLevel) {
     case GrowthAlertLevel.danger:
-      headerColor = Colors.red.shade700;
-      containerBg = Colors.red.shade50;
+      headerColor = colorScheme.error;
+      containerBg = colorScheme.errorContainer;
       statusIcon = Icons.error_outline_rounded;
       break;
     case GrowthAlertLevel.warning:
-      headerColor = Colors.orange.shade800;
-      containerBg = Colors.orange.shade50;
+      headerColor = AppTheme.statusMeragukan;
+      containerBg = AppTheme.coralSoft;
       statusIcon = Icons.warning_amber_rounded;
       break;
     case GrowthAlertLevel.normal:
-      headerColor = Colors.green.shade700;
-      containerBg = Colors.green.shade50;
+      headerColor = AppTheme.statusSesuai;
+      containerBg = AppTheme.sageSoft;
       statusIcon = Icons.check_circle_outline_rounded;
       break;
   }
@@ -58,7 +59,7 @@ Future<void> showGrowthEvaluationSheet(
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: colorScheme.outlineVariant,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -128,7 +129,7 @@ Future<void> showGrowthEvaluationSheet(
                         eval.summary,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Colors.grey.shade800,
+                          color: colorScheme.onSurfaceVariant,
                           height: 1.4,
                         ),
                       ),
@@ -174,7 +175,7 @@ Future<void> showGrowthEvaluationSheet(
                   Row(
                     children: [
                       Icon(Icons.cancel_outlined,
-                          size: 18, color: Colors.red.shade700),
+                          size: 18, color: colorScheme.error),
                       const SizedBox(width: 8),
                       const Text(
                         'Makanan yang Perlu Dibatasi:',
@@ -192,7 +193,7 @@ Future<void> showGrowthEvaluationSheet(
                         children: [
                           Text('✕ ',
                               style: TextStyle(
-                                  color: Colors.red.shade700,
+                                  color: colorScheme.error,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),
                           Expanded(
@@ -211,9 +212,9 @@ Future<void> showGrowthEvaluationSheet(
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue.shade100),
+                    border: Border.all(color: colorScheme.outlineVariant),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +225,7 @@ Future<void> showGrowthEvaluationSheet(
                           eval.clinicalAction,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue.shade900,
+                            color: colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w500,
                             height: 1.35,
                           ),

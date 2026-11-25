@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/child_entity.dart';
 import '../providers/child_provider.dart';
@@ -12,6 +13,7 @@ import '../../../../shared/widgets/error_state_widget.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/child_summary_card.dart';
 import '../../../../shared/widgets/animated_entrance.dart';
+import '../../../../shared/widgets/health_illustration.dart';
 import '../../../milestone/presentation/providers/milestone_provider.dart';
 import '../../../tracking/domain/services/growth_evaluation_service.dart';
 import '../../../tracking/presentation/providers/growth_record_provider.dart';
@@ -138,6 +140,15 @@ class ChildListScreen extends ConsumerWidget {
                                 context, selectedChild, ref),
                           ),
 
+                          const SizedBox(height: 8),
+
+                          // Ilustrasi pemeriksaan anak pada panel kesehatan utama.
+                          HealthIllustration(
+                            assetPath:
+                                'assets/illustrations/pediatric-checkup-preview.jpg',
+                            height: 150,
+                          ),
+
                           const SizedBox(height: 20),
 
                           // === GROWTH STATS ROW ===
@@ -152,15 +163,6 @@ class ChildListScreen extends ConsumerWidget {
                           AnimatedEntrance(
                             delay: const Duration(milliseconds: 300),
                             child: _buildGrowthEvaluationCard(
-                                context, selectedChild, ref),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // === QUICK ACTIONS ===
-                          AnimatedEntrance(
-                            delay: const Duration(milliseconds: 350),
-                            child: _buildQuickActions(
                                 context, selectedChild, ref),
                           ),
 
@@ -213,35 +215,50 @@ class ChildListScreen extends ConsumerWidget {
         ? '$greeting, $displayName'
         : greeting;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greetingTitle,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.primary,
-                ),
+        Row(
+          children: [
+            // Logo gelombang kesehatan, versi sederhana dari referensi.
+            CustomPaint(
+              size: const Size(38, 38),
+              painter: const _HealthMarkPainter(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    greetingTitle,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Mari pantau tumbuh kembang Si Kecil hari ini.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Mari pantau tumbuh kembang Si Kecil hari ini.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Keluar Akun',
+              onPressed: () => _confirmSignOut(context, ref),
+            ),
+          ],
         ),
-        IconButton(
-          icon: const Icon(Icons.logout_rounded),
-          tooltip: 'Keluar Akun',
-          onPressed: () => _confirmSignOut(context, ref),
+        const SizedBox(height: 20),
+        Text(
+          'Tumbuh Kembang',
+          style: theme.textTheme.headlineMedium,
         ),
       ],
     );
@@ -295,7 +312,8 @@ class ChildListScreen extends ConsumerWidget {
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                  icon: Icon(Icons.edit_outlined,
+                      color: Theme.of(context).colorScheme.primary),
                   tooltip: 'Edit Profil Anak',
                   onPressed: () {
                     context.pushNamed(
@@ -306,7 +324,8 @@ class ChildListScreen extends ConsumerWidget {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: Icon(Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.error),
                   tooltip: 'Hapus Profil Anak',
                   onPressed: () => _confirmDeleteChild(context, ref, child),
                 ),
@@ -318,8 +337,6 @@ class ChildListScreen extends ConsumerWidget {
         ChildSummaryCard(
           child: child,
           lastMilestoneStatus: latestMilestone?.status,
-          onTap: () => context.pushNamed('milestone',
-              pathParameters: {'childId': child.id}),
         ),
       ],
     );
@@ -342,7 +359,10 @@ Future<void> _confirmDeleteChild(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: Text(
+              'Hapus',
+              style: TextStyle(color: Theme.of(context).colorScheme.onError),
+            ),
           ),
         ],
       ),
@@ -371,8 +391,6 @@ Future<void> _confirmDeleteChild(
       BuildContext context, ChildEntity? child, WidgetRef ref) {
     if (child == null) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final latestRecord = ref.watch(latestGrowthRecordProvider(child.id));
 
     final weightText = latestRecord != null
@@ -392,7 +410,7 @@ Future<void> _confirmDeleteChild(
             icon: Icons.monitor_weight_outlined,
             label: 'Berat',
             value: weightText,
-            color: colorScheme.primary,
+            color: AppTheme.metricWeight,
           ),
         ),
         const SizedBox(width: 12),
@@ -401,7 +419,7 @@ Future<void> _confirmDeleteChild(
             icon: Icons.height_outlined,
             label: 'Tinggi',
             value: heightText,
-            color: const Color(0xFFFFA726),
+            color: AppTheme.metricHeight,
           ),
         ),
         const SizedBox(width: 12),
@@ -410,7 +428,7 @@ Future<void> _confirmDeleteChild(
             icon: Icons.straighten_outlined,
             label: 'Lingkar Kepala',
             value: headText,
-            color: const Color(0xFF43A047),
+            color: AppTheme.metricHead,
           ),
         ),
       ],
@@ -435,52 +453,44 @@ Future<void> _confirmDeleteChild(
             color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => context.pushNamed(
-            'tracking',
-            pathParameters: {'childId': child.id},
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withValues(alpha: 0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.add_chart_rounded,
-                    color: colorScheme.primary,
-                    size: 22,
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Belum Ada Catatan Fisik',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Catat berat & tinggi badan si kecil untuk evaluasi gizi.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Icon(
+                  Icons.add_chart_rounded,
+                  color: colorScheme.primary,
+                  size: 22,
                 ),
-                Icon(Icons.chevron_right, color: colorScheme.outline),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Belum Ada Catatan Fisik',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Catat berat & tinggi badan si kecil untuk evaluasi gizi.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -499,18 +509,18 @@ Future<void> _confirmDeleteChild(
 
     switch (eval.alertLevel) {
       case GrowthAlertLevel.danger:
-        statusColor = Colors.red.shade700;
-        statusBg = Colors.red.shade50;
+        statusColor = colorScheme.error;
+        statusBg = colorScheme.errorContainer;
         statusIcon = Icons.error_outline_rounded;
         break;
       case GrowthAlertLevel.warning:
-        statusColor = Colors.orange.shade800;
-        statusBg = Colors.orange.shade50;
+        statusColor = AppTheme.statusMeragukan;
+        statusBg = AppTheme.coralSoft;
         statusIcon = Icons.warning_amber_rounded;
         break;
       case GrowthAlertLevel.normal:
-        statusColor = Colors.green.shade700;
-        statusBg = Colors.green.shade50;
+        statusColor = AppTheme.statusSesuai;
+        statusBg = AppTheme.sageSoft;
         statusIcon = Icons.check_circle_outline_rounded;
         break;
     }
@@ -576,7 +586,7 @@ Future<void> _confirmDeleteChild(
               Text(
                 eval.summary,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade800,
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.35,
                 ),
                 maxLines: 2,
@@ -603,90 +613,6 @@ Future<void> _confirmDeleteChild(
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildQuickActions(
-      BuildContext context, ChildEntity? child, WidgetRef ref) {
-    final isLoading = ref.watch(isLoadingProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // Tombol Cek Milestone
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.checklist_rounded,
-                label: 'Cek\nMilestone',
-                color: const Color(0xFF4CAF82),
-                isLoading: isLoading,
-                onTap: () {
-                  if (child != null && !isLoading) {
-                    context.goNamed('milestone',
-                        pathParameters: {'childId': child.id});
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Tombol Catat Tumbuh Kembang
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.edit_note_rounded,
-                label: 'Catat\nTumbuh Kembang',
-                color: const Color(0xFFFFA726),
-                isLoading: isLoading,
-                onTap: () {
-                  if (child != null && !isLoading) {
-                    context.goNamed('tracking',
-                        pathParameters: {'childId': child.id});
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            // Tombol Grafik Pertumbuhan
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.show_chart_rounded,
-                label: 'Grafik\nPertumbuhan',
-                color: const Color(0xFF42A5F5),
-                isLoading: isLoading,
-                onTap: () {
-                  if (child != null && !isLoading) {
-                    context.pushNamed('growthChart',
-                        pathParameters: {'childId': child.id});
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Tombol Timeline Milestone
-            Expanded(
-              child: _QuickActionButton(
-                icon: Icons.timeline_rounded,
-                label: 'Timeline\nMilestone',
-                color: const Color(0xFFAB47BC),
-                isLoading: isLoading,
-                onTap: () {
-                  if (child != null && !isLoading) {
-                    context.pushNamed('milestoneTimeline',
-                        pathParameters: {'childId': child.id});
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -753,22 +679,12 @@ Future<void> _confirmDeleteChild(
                       ),
                     ),
                     if (isUrgent) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 36,
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.pushNamed('milestone',
-                              pathParameters: {'childId': child.id}),
-                          icon: const Icon(Icons.assignment_outlined, size: 18),
-                          label: const Text('Lakukan Sekarang'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.error,
-                            side: BorderSide(color: colorScheme.error),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                          ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Buka tab Milestone untuk melakukan evaluasi.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: iconColor,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -841,30 +757,38 @@ class _StatTile extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusL),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 6),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: const BoxDecoration(
+              color: AppTheme.ink,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 21),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 4),
           Text(
             value,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: color,
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -872,65 +796,82 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-/// Tombol aksi cepat — besar, thumb-friendly, min height 96dp.
-class _QuickActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool isLoading;
-  final VoidCallback onTap;
-
-  const _QuickActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    this.isLoading = false,
-    required this.onTap,
-  });
+/// Logo gelombang kesehatan berbasis vektor, tanpa aset gambar tambahan.
+class _HealthMarkPainter extends CustomPainter {
+  const _HealthMarkPainter();
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 96),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLoading)
-                SizedBox(
-                  height: 28,
-                  width: 28,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: color,
-                  ),
-                )
-              else
-                Icon(icon, size: 28, color: color),
-              const SizedBox(height: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: color,
-                        fontSize: 12,
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..color = AppTheme.ink
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final fill = Paint()
+      ..color = AppTheme.ink
+      ..style = PaintingStyle.fill;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - line.strokeWidth / 2;
+    canvas.drawCircle(center, radius, fill);
+    canvas.drawCircle(center, radius, line);
+
+    final wave = Path()
+      ..moveTo(size.width * 0.08, size.height * 0.52)
+      ..cubicTo(
+        size.width * 0.28,
+        size.height * 0.34,
+        size.width * 0.44,
+        size.height * 0.68,
+        size.width * 0.63,
+        size.height * 0.50,
+      )
+      ..cubicTo(
+        size.width * 0.75,
+        size.height * 0.39,
+        size.width * 0.84,
+        size.height * 0.42,
+        size.width * 0.93,
+        size.height * 0.47,
+      );
+    final pulse = Path()
+      ..moveTo(size.width * 0.08, size.height * 0.72)
+      ..cubicTo(
+        size.width * 0.25,
+        size.height * 0.60,
+        size.width * 0.43,
+        size.height * 0.84,
+        size.width * 0.60,
+        size.height * 0.70,
+      )
+      ..cubicTo(
+        size.width * 0.72,
+        size.height * 0.61,
+        size.width * 0.82,
+        size.height * 0.64,
+        size.width * 0.90,
+        size.height * 0.70,
+      );
+    final cyanLine = Paint()
+      ..color = AppTheme.cyan
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(wave, cyanLine);
+    canvas.drawPath(pulse, cyanLine);
+    canvas.drawCircle(
+      Offset(size.width * 0.72, size.height * 0.28),
+      size.width * 0.09,
+      Paint()..color = AppTheme.cyan,
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.72, size.height * 0.28),
+      size.width * 0.09,
+      line,
     );
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
