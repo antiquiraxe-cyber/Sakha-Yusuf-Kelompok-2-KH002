@@ -348,4 +348,22 @@ void main() {
     );
     expect(find.text('1/1 Ya · 100% · Sesuai'), findsOneWidget);
   });
+
+  testWidgets('Empty state grafik fisik tidak punya tombol ganda', (
+    tester,
+  ) async {
+    await phone(tester, const GrowthChartScreen(childId: 'a'), [
+      childListProvider.overrideWithValue([child]),
+      growthRecordsStreamProvider.overrideWith((_, id) => Stream.value([])),
+      milestoneHistoryStreamProvider.overrideWith(
+        (_, id) => Stream.value([]),
+      ),
+    ]);
+    expect(find.text('Belum ada data pertumbuhan'), findsWidgets);
+    expect(
+      find.text('Buka tab Catatan untuk menambah data pertumbuhan.'),
+      findsWidgets,
+    );
+    expect(find.text('Tambah Catatan'), findsNothing);
+  });
 }

@@ -348,46 +348,75 @@ class ChildListScreen extends ConsumerWidget {
     WidgetRef ref,
     ChildEntity child,
   ) async {
+    // StatefulBuilder memberi state lokal di dialog — tombol bisa disable
+    // dan menampilkan spinner saat penghapusan berjalan, tanpa provider baru.
+    var loading = false;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Profil Anak'),
-        content: Text('Hapus ${child.name}? Data akan hilang permanen.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+      barrierDismissible: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Hapus Profil Anak'),
+          content: Text('Hapus ${child.name}? Data akan hilang permanen.'),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Batal'),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Hapus',
-              style: TextStyle(color: Theme.of(context).colorScheme.onError),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: loading
+                  ? null
+                  : () async {
+                      setState(() => loading = true);
+                      try {
+                        final uid =
+                            FirebaseAuth.instance.currentUser!.uid;
+                        await ref
+                            .read(childRepositoryProvider)
+                            .deleteChild(uid, child.id);
+                        if (ctx.mounted) Navigator.pop(ctx, true);
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          setState(() => loading = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal menghapus data: $e'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: SizedBox(
+                width: 72,
+                child: loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Hapus',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
+                      ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
     if (confirm == true && context.mounted) {
-      try {
-        final uid = FirebaseAuth.instance.currentUser!.uid;
-        await ref.read(childRepositoryProvider).deleteChild(uid, child.id);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Data ${child.name} berhasil dihapus')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Gagal menghapus data: $e')));
-        }
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Data ${child.name} berhasil dihapus')),
+      );
     }
   }
 

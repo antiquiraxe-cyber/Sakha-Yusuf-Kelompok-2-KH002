@@ -13,6 +13,8 @@ class AppTheme {
   static const Color cyan = Color(0xFFC7E9F2);
   static const Color cyanStrong = Color(0xFF9BD9E8);
   static const Color coral = Color(0xFFE8663F);
+  /// Versi coral gelap untuk teks kecil (kontras >= 4.5:1 di atas putih).
+  static const Color coralText = Color(0xFFB44520);
   static const Color coralSoft = Color(0xFFFBE2D8);
   static const Color sage = Color(0xFF7F8F4E);
   static const Color sageSoft = Color(0xFFE6EAD4);

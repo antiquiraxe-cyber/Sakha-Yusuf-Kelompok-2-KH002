@@ -143,11 +143,24 @@ class KpspProgressChart extends ConsumerWidget {
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 32,
-                              getTitlesWidget: (v, _) => Text(
-                                DateFormat('dd/MM')
-                                    .format(sessions[v.toInt()].evaluatedAt),
-                                style: theme.textTheme.labelMedium,
-                              ),
+                              getTitlesWidget: (v, _) {
+                                // Hanya tampilkan label di awal, tengah, akhir
+                                // supaya tidak berdesakan di layar sempit.
+                                final i = v.toInt();
+                                final showLabel = sessions.length <= 3 ||
+                                    i == 0 ||
+                                    i == sessions.length - 1 ||
+                                    i == sessions.length ~/ 2;
+                                if (!showLabel) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Text(
+                                  DateFormat('d/M').format(
+                                    sessions[i].evaluatedAt,
+                                  ),
+                                  style: theme.textTheme.labelSmall,
+                                );
+                              },
                             ),
                           ),
                         ),

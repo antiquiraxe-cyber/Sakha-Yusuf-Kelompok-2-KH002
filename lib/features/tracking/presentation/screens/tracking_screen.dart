@@ -669,7 +669,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: color,
+              // Icon/background tetap pakai aksen cerah; teks pakai versi gelap.
+              color: color == AppTheme.metricHeight
+                  ? AppTheme.coralText
+                  : color,
             ),
           ),
         ],

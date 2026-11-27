@@ -114,14 +114,12 @@ class _GrowthChartScreenState extends ConsumerState<GrowthChartScreen>
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => context.pushNamed(
-              'tracking',
-              pathParameters: {'childId': widget.childId},
-            ),
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Catatan'),
+          const SizedBox(height: 12),
+          Text(
+            'Buka tab Catatan untuk menambah data pertumbuhan.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
