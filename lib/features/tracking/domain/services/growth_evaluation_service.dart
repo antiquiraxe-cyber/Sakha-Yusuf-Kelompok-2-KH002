@@ -420,9 +420,7 @@ class GrowthEvaluationService {
             'Lanjutkan ASI Eksklusif secara on-demand (sesuai keinginan bayi).',
             'Jaga kesehatan dan kecukupan gizi ibu menyusui.',
           ],
-          foodsAvoid: [
-            'Jangan berikan makanan/cairan selain ASI sebelum genap 6 bulan.',
-          ],
+          foodsAvoid: const [],
           clinicalAction:
               'Lanjutkan penimbangan rutin dan imunisasi bulanan di Posyandu.',
         );
@@ -435,9 +433,7 @@ class GrowthEvaluationService {
             'Berikan MPASI bergizi seimbang lengkap (karbohidrat, protein hewani, lemak sehat, sayur/buah).',
             'Tingkatkan tekstur MPASI bertahap sesuai usia bayi.',
           ],
-          foodsAvoid: [
-            'Batasi jajanan kemasan dan makanan berpemanis buatan.',
-          ],
+          foodsAvoid: const [],
           clinicalAction:
               'Pantau penimbangan berat badan dan tinggi badan rutin di Posyandu.',
         );
@@ -450,9 +446,7 @@ class GrowthEvaluationService {
             'Berikan 1 butir telur ayam setiap hari dan variasikan lauk hewani lainnya.',
             'Terapkan jadwal makan teratur (3x makan utama, 2x selingan).',
           ],
-          foodsAvoid: [
-            'Batasi jajanan manis dan makanan cepat saji.',
-          ],
+          foodsAvoid: const [],
           clinicalAction:
               'Lanjutkan penimbangan bulanan dan stimulasi tumbuh kembang.',
         );
@@ -465,9 +459,7 @@ class GrowthEvaluationService {
             'Pertahankan prinsip gizi seimbang "Isi Piringku Balita".',
             'Sediakan buah segar dan air putih yang cukup harian.',
           ],
-          foodsAvoid: [
-            'Batasi makanan ultra-proses, makanan gorengan tebal, dan minuman tinggi gula.',
-          ],
+          foodsAvoid: const [],
           clinicalAction:
               'Lanjutkan pemantauan tumbuh kembang bulanan di Posyandu/Puskesmas.',
         );
